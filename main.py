@@ -5,7 +5,7 @@ import discord
 import re
 from discord.ext import commands
 
-TOKEN = "NjIwMjc5NzY5MDY5NTE4ODUw.XXUesA.glPV3nxFxfEq4_PXe_5alzxZhh8"
+TOKEN = ""
 
 BOT_PREFIX = '!'
 
