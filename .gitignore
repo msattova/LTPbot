@@ -1,0 +1,2 @@
+#pycacheを除外
+__pycache__/
