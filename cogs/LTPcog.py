@@ -32,7 +32,7 @@ class LTPcog(commands.Cog):
 
     #番号振り直し関数
     def reindex(self, l:list,qora:bool)->list:
-        # typeが真のときは質問、偽のときは解答とする。
+        # qoraが真のときは質問、偽のときは解答とする。
         new = l
         qa = "Q" if qora else "A"
         for i in range(len(l)):
