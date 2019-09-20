@@ -19,31 +19,26 @@ class LTPcog(commands.Cog):
     #質問・解答追加処理関数
     def add_to_list(self, msg,l:list,qora:bool):
         n = len(l)+1
-        if qora:
-            whitch = "Q"
-        else :
-            whitch = "A"
-        l.append(whitch+str(n)+": "+msg)
+        #qoraが真なら質問、偽なら解答
+        whitch = "Q" if qora else "A"
+        l.append(f"{whitch}{n}: {msg}")
 
     #質問や解答への返答処理関数
     def respond(self, num:int, s:str,l:list):
         print(l)
         s=s.split()
         print(s)
-        l[num-1] = l[num-1]+" : "+s[1]
+        l[num-1] = f"{l[num-1]} : {s[1]}"
 
     #番号振り直し関数
-    def reindex(self, l:list,type:bool)->list:
+    def reindex(self, l:list,qora:bool)->list:
         # typeが真のときは質問、偽のときは解答とする。
         new = l
-        if type :
-            qa = "Q"
-        else:
-            qa = "A"
+        qa = "Q" if qora else "A"
         for i in range(len(l)):
             msg = l[i].split(": ",1)
             print(msg)
-            new[i] = qa+str(i)+": "+msg[1]
+            new[i] = f"{qa}{i}: {msg[1]}"
         return new
 
     @commands.command(description="ウミガメのスープのルールを説明します。",brief="ウミガメのスープのルールを説明します。")
@@ -63,19 +58,19 @@ Discordで行うにあたって：
             m="まだ質問がされていません"
         else:
             for i in range(len(self.q_list)):
-                m = m + self.q_list[i]+"\n"
+                m = f'{m}{self.q_list[i]}\n'
         print(m)
         await history.channel.send(m)
 
     @commands.command(description="""これまでに出た解答(『』で囲まれた言葉)の履歴を表示します。""",brief="これまでに出た解答の履歴を表示します。")
     async def lista(self, history):
         m = ""
-        if len(self.a_list) == 0:
+        if len(self.a_list) == 0 :
             m="まだ解答がされていません"
         else:
             for i in range(len(self.a_list)):
-                m = m + self.a_list[i]+"\n"
-        print(m)
+                m = f'{m}{self.a_list[i]}\n'
+                print(m)
         await history.channel.send(m)
 
     @commands.command(description="""質問を修正します。
@@ -83,10 +78,10 @@ Discordで行うにあたって：
 !req (修正したい質問番号) (質問の修正)""",brief="質問の修正ができます。")
     async def req(self, ctx,num:int, s:str):
         if len(self.q_list)<=num-1:
-    	    m = "Error! Q"+str(num)+"はまだ存在しません"
+    	    m = f"Error! Q{num}はまだ存在しません"
         else:
-            self.q_list[num-1]="Q"+str(num)+": "+s
-            m = "Q"+str(num)+"の変更を受理しました。"
+            self.q_list[num-1] = f"Q{num}: {s}"
+            m = f"Q{num}の変更を受理しました。"
         await ctx.channel.send(m)
 
     @commands.command(description="""解答を修正します。
@@ -94,10 +89,10 @@ Discordで行うにあたって：
 !rea (修正したい解答番号) (解答の修正)""",brief="解答の修正ができます。")
     async def rea(self, ctx,num:int, s:str):
         if len(self.a_list)<=num-1:
-            m = "Error! A"+str(num)+"はまだ存在しません"
+            m = f"Error! A{num}はまだ存在しません"
         else:
-            self.a_list[num-1]="A"+str(num)+": "+s
-            m = "A"+str(num)+"の変更を受理しました。"
+            self.a_list[num-1]= f"A{num}: {s}"
+            m = f"A{num}の変更を受理しました。"
         await ctx.channel.send(m)
 
     """なんか動かない
@@ -156,7 +151,7 @@ Discordで行うにあたって：
 
     @commands.command(description="""質問や解答の履歴をBOTから削除し、listコマンド等で参照できないようにします。このコマンドによって削除された質問や解答は、チャンネルの履歴には残ります。
 *使用方法*
-!delall : BOTに記録された全ての履歴を削除します""",brief="質問や解答の履歴をBOTから全て削除します。チャンネルからは削除されません。")
+!delall : BOTに記録された全ての履歴を削除します""",brief="質問や解答の履歴をBOTから全て削除します。")
     async def delall(self, ctx):
         m="Error"
         self.a_list.clear()
@@ -175,6 +170,7 @@ Discordで行うにあたって：
             message.content.rstrip(" ")
             message.content.rstrip("　")
 
+        # 質問への処理
         if message.content.startswith("「"):
             m = message.content[1:-1]
             self.add_to_list(m,self.q_list,1)
@@ -182,6 +178,7 @@ Discordで行うにあたって：
             print(self.q_list[-1])
             await message.channel.send(m)
 
+        # 解答への処理
         if message.content.startswith("『"):
             m = message.content[1:-1]
             self.add_to_list(m,self.a_list,0)
