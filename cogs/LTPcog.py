@@ -2,8 +2,7 @@ from discord.ext import commands
 import discord
 import re
 import random
-from datetime import datetime
-from pytz import timezone
+from datetime import datetime, timedelta
 
 # はじめに呼び出されるコグ
 class General(commands.Cog):
@@ -367,6 +366,7 @@ def template(s1:str, s2:str, s3:str) -> str:
 
 # 現在の日本時間取得
 def now_jst()->str:
-    dt_now=datetime.now(timezone('Azia/Tokyo'))
+    JST = timezone(timedelta(hours+=9), 'JST')
+    dt_now=datetime.now(JST)
     now_str=dt_now.strftime("%Y/%m/%d %H:%M")
     return now_str
