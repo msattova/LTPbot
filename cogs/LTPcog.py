@@ -115,7 +115,7 @@ class LTPcog(commands.Cog):
         self.reply_a = {}
         self.q_key = []
         self.a_key = []
-        self.start_time = datetime.now().strftime("%Y/%m/%d %H:%M")
+        self.start_time = jst_now()
 
     #質問・解答追加処理関数
     def add_to_dic(self, msg:str,qora:bool):
