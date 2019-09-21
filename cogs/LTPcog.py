@@ -2,7 +2,8 @@ from discord.ext import commands
 import discord
 import re
 import random
-from datetime import datetime 
+from datetime import datetime
+from pytz import timezone
 
 # はじめに呼び出されるコグ
 class General(commands.Cog):
@@ -115,7 +116,7 @@ class LTPcog(commands.Cog):
         self.reply_a = {}
         self.q_key = []
         self.a_key = []
-        self.start_time = datetime.now().strftime("%Y/%m/%d %H:%M")
+        self.start_time = now_jst()
 
     #質問・解答追加処理関数
     def add_to_dic(self, msg:str,qora:bool):
@@ -363,3 +364,9 @@ def setup(bot):
 # 定型文生成関数
 def template(s1:str, s2:str, s3:str) -> str:
     return f"{s1}: {s2}" if not s3 else f"{s1}: {s2} : {s3}"
+
+# 現在の日本時間取得
+def now_jst()->str:
+    dt_now=datetime.now(timezone('Azia/Tokyo'))
+    now_str=dt_now.strftime("%Y/%m/%d %H:%M")
+    return now_str
