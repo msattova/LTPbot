@@ -115,7 +115,7 @@ class LTPcog(commands.Cog):
         self.reply_a = {}
         self.q_key = []
         self.a_key = []
-        self.start_time = now_jst()
+        self.start_time = datetime.now().strftime("%Y/%m/%d %H:%M")
 
     #質問・解答追加処理関数
     def add_to_dic(self, msg:str,qora:bool):
@@ -367,6 +367,4 @@ def template(s1:str, s2:str, s3:str) -> str:
 # 現在の日本時間取得
 def now_jst()->str:
     JST = timezone(timedelta(hours+=9), 'JST')
-    dt_now=datetime.now(JST)
-    now_str=dt_now.strftime("%Y/%m/%d %H:%M")
-    return now_str
+    return datetime.now(JST).strftime("%Y/%m/%d %H:%M")
