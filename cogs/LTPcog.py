@@ -2,7 +2,7 @@ from discord.ext import commands
 import discord
 import re
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # はじめに呼び出されるコグ
 class General(commands.Cog):
