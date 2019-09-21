@@ -125,7 +125,7 @@ class LTPcog(commands.Cog):
             self.q_key.append(f"{qa}{num}")
             self.questions[self.q_key[num-1]] = msg
             self.reply_q[f"{self.q_key[num-1]}r"] = ""
-            self.timelog[self.q_key[num-1]] = datetime.now().strftime("%Y/%m/%d %H:%M")
+            self.timelog[self.q_key[num-1]] = jst_now()
             self.timelog[f"{self.q_key[num-1]}r"] = ""
         else:
             qa = "A"
@@ -133,7 +133,7 @@ class LTPcog(commands.Cog):
             self.a_key.append(f"{qa}{num}")
             self.answers[self.a_key[num-1]] = msg
             self.reply_a[f"{self.a_key[num-1]}r"] = ""
-            self.timelog[self.a_key[num-1]] = datetime.now().strftime("%Y/%m/%d %H:%M")
+            self.timelog[self.a_key[num-1]] = jst_now()
             self.timelog[f"{self.a_key[num-1]}r"] = ""
 
 
@@ -143,11 +143,11 @@ class LTPcog(commands.Cog):
         if qora :
             k = self.q_key[num-1]
             self.reply_q[f"{k}r"] = s[1]
-            self.timelog[f"{k}r"] = datetime.now().strftime("%Y/%m/%d %H:%M")
+            self.timelog[f"{k}r"] = jst_now()
         else :
             k = self.a_key[num-1]
             self.reply_a[f"{k}r"] = s[1]
-            self.timelog[f"{k}r"] = datetime.now().strftime("%Y/%m/%d %H:%M")
+            self.timelog[f"{k}r"] = jst_now()
 
     @commands.command(description="""これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。""",brief="これまでに出た解答の履歴を表示します。")
     async def list(self, history):
@@ -185,7 +185,7 @@ class LTPcog(commands.Cog):
             k = self.q_key[num-1]
             self.questions[k] = s
             self.reply_q[f"{k}r"] = ""
-            self.timelog[k] = datetime.now().strftime("%Y/%m/%d %H:%M")
+            self.timelog[k] = jst_now()
             self.timelog[f"{k}r"] = ""
             m = f"Q{num}の変更を受理しました。"
         else:
@@ -200,7 +200,7 @@ class LTPcog(commands.Cog):
             k = self.a_key[num-1]
             self.answers[k] = s
             self.reply_a[f"{k}r"] = ""
-            self.timelog[k] = datetime.now().strftime("%Y/%m/%d %H:%M")
+            self.timelog[k] = jst_now()
             self.timelog[f"{k}r"] = ""
             m = f"A{num}の変更を受理しました。"
         else:
