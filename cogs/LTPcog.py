@@ -365,6 +365,6 @@ def template(s1:str, s2:str, s3:str) -> str:
     return f"{s1}: {s2}" if not s3 else f"{s1}: {s2} : {s3}"
 
 # 現在の日本時間取得
-def now_jst()->str:
+def jst_now()->str:
     JST = timezone(timedelta(hours=+9), 'JST')
     return datetime.now(JST).strftime("%Y/%m/%d %H:%M")
