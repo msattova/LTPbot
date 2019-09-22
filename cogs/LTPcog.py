@@ -14,7 +14,7 @@ class General(commands.Cog):
         self.bot = bot
         self.has_started = 0
         # 以下、デバッグ用設定
-        #self.bot.add_cog(LTPcog(self.bot))
+        self.bot.add_cog(LTPcog(self.bot))
     
     @commands.command(description="たまにさけびます",brief="おねこさま")
     async def neko(self, n):
@@ -73,7 +73,8 @@ Discordで行うにあたって：
         log = self.bot.get_cog('LTPcog')
         if log is not None:
             msg = log.showlog()
-            await ctx.channel.send(msg)
+            for i in range(len(msg)):
+                await ctx.channel.send(msg[i])
         self.bot.remove_cog('LTPcog')
         await self.bot.change_presence(activity=None)
         await ctx.channel.send("ウミガメのスープを終了します")
@@ -149,6 +150,29 @@ class LTPcog(commands.Cog):
             self.reply_a[f"{k}r"] = s[1]
             self.timelog[f"{k}r"] = jst_now()
 
+    #番号振り直し関数
+    #timelogをどうするか考える（現状では番号を振りなおすとプレイログが出力できない）
+    def reindex(self, key:list, dic:dict, rep:dict, qora:bool):
+        num = len(key)
+        # tmp = keyではtmpとkeyは同じデータを参照してしまう
+        tmp = key.copy()
+        qa = "Q" if qora else "A"
+        tmp_dic = dic.copy()
+        tmp_rep = rep.copy()
+        tmp_log = timelog.copy()
+        dic.clear()
+        rep.clear()
+        timelog.clear()
+        for i in range(num):
+            print(f"{key[i]} to {qa}{i+1}")
+            key[i] = f"{qa}{i+1}"
+        for i in range(num):
+            print(f"key = {key[i]}")
+            print(f"tmp_dic = {tmp_dic[tmp[i]]}")
+            dic[key[i]] = tmp_dic[tmp[i]]
+            rep[key[i]+'r'] = tmp_rep[tmp[i]+'r']
+
+
     @commands.command(description="""これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。""",brief="これまでに出た解答の履歴を表示します。")
     async def list(self, history):
         
@@ -207,7 +231,8 @@ class LTPcog(commands.Cog):
             m = f"Error! A{num}はまだ存在しません"
         await ctx.channel.send(m)
 
-    """なんか動かない
+    """
+    #なんか動かない
     @commands.group(description='''質問や解答の履歴をBOTから削除し、listコマンド等で参照できないようにします。このコマンドによって削除された質問や解答は、チャンネルの履歴には残ります。全削除は!delallで実行して下さい。
 *使用方法*
 !delete q (質問番号) : 指定した質問番号に対応する質問の履歴を削除します。
@@ -217,23 +242,31 @@ class LTPcog(commands.Cog):
             await ctx.send("Error! 引数が指定されていません。!help deleteで使用方法を確認して下さい。")
 
     @delete.command(aliases=['q'])
-    async def question(self, num:int):
+    async def question(self, ctx, num:int):
         print(num)
-        if len(self.q_list)>=num:
-            m = self.q_list[num-1]+" を削除しました。"
-            del self.q_list[num-1]
-            self.reindex(self.q_list,0)
+        if len(self.q_key)>(num-1):
+            k = self.q_key.pop(num-1)
+            delq = self.questions.pop(k)
+            delqr = self.reply_q.pop(f"{k}r")
+            del self.timelog[k]
+            content = template(k, delq, delqr)
+            m = f"“{content}”を削除しました。"
+            self.reindex(self.q_key,self.questions,self.reply_q,1)
         else:
             m = "Error! Q"+str(num)+"はまだ存在しません。"
         await ctx.channel.send(m)
 
     @delete.command(aliases=['a'])
-    async def answer(self, num:int):
+    async def answer(self, ctx, num:int):
         print(num)
-        if len(self.a_list)>=num:
-            m = self.a_list[num-1]+" を削除しました。"
-            del self.a_list[num-1]
-            self.reindex(self.a_list,1)
+        if len(self.a_key)>(num-1):
+            k = self.a_key.pop(num-1)
+            delq = self.answers.pop(k)
+            delqr = self.reply_a.pop(f"{k}r")
+            del self.timelog[k]
+            content = template(k, dela, delar)
+            m = f"“{content}”を削除しました。"
+            self.reindex(self.a_key,self.answers,self.reply_a,0)
         else:
             m = "Error! A"+str(num)+"はまだ存在しません。"
         await ctx.channel.send(m)
@@ -264,7 +297,8 @@ class LTPcog(commands.Cog):
 現在、発言者名は表示されませんが、今後の改良で表示するように変更していきます。""",brief="ゲーム開始からのプレイログを出力します", aliases=['log'])
     async def playlog(self, ctx):
         msg = self.showlog()
-        await ctx.channel.send(msg)
+        for i in range(len(msg)):
+            await ctx.channel.send(msg[i])
 
 
     @commands.Cog.listener()
@@ -272,9 +306,9 @@ class LTPcog(commands.Cog):
         if message.author.bot:
             return
         
-        # 行頭の空白除外処理
-        message.content.lstrip(" ")
-        message.content.lstrip("　")
+        # 行頭の空白除外処理(なしに)
+        #message.content.lstrip(" ")
+        #message.content.lstrip("　")
         if message.content.startswith("!"):
             message.content.rstrip(" ")
             message.content.rstrip("　")
@@ -321,38 +355,46 @@ class LTPcog(commands.Cog):
         #await self.bot.process_commands(message)
         
         
-    def showlog(self)-> str:
+    def showlog(self)-> list:
         q_start = ""
         a_start = ""
         line = ""
         q_log = ""
         a_log = ""
-        msg = ""
+        msg = []
+        border = "-"*16
+        msg.append(f"===={self.start_time} 開始====")
         if len(self.q_key) == 0 :
             q_start = "【質問がありません】"
+            msg.append(q_start)
         else:
             q_start = "【質問ログ】"
+            msg.append(q_start)
             for i in range(len(self.q_key)):
                 kr = self.q_key[i]+'r'
                 print(kr)
                 line = f"{self.q_key[i]}: {self.questions[self.q_key[i]]} ({self.timelog[self.q_key[i]]})\n"
                 rep = "{} ({})\n".format((" "*4)+"<- "+self.reply_q[kr], self.timelog[kr]) \
-                if self.reply_q[kr] else \
-                "{}\n".format((" "*4)+"<- No reply")
-                q_log = q_log + line + rep
+                  if self.reply_q[kr] else \
+                  "{}\n".format((" "*4)+"<- No reply")
+                msg.append(line + rep)
+        msg.append(border)
         if len(self.a_key) == 0 :
             a_start = "【解答がありません】"
+            msg.append(a_start)
         else:
             a_start = "【解答ログ】"
+            msg.append(a_start)
             for i in range(len(self.a_key)):
                 kr = self.a_key[i]+'r'
                 print(kr)
                 line = f"{self.a_key[i]}: {self.answers[self.a_key[i]]} ({self.timelog[self.a_key[i]]})\n"
                 rep = "{} ({})\n".format((" "*4)+"<- "+self.reply_a[kr], self.timelog[kr]) \
-                if self.reply_a[kr] else \
-                "{}\n".format((" "*4)+"<- No reply")
-                a_log = a_log + line + rep
-        msg = "====={0}=====\n{1}\n{2}{5}\n{3}\n{4}{5}".format(self.start_time+" 開始", q_start, q_log, a_start, a_log,"-"*20)
+                  if self.reply_a[kr] else \
+                  "{}\n".format((" "*4)+"<- No reply")
+                msg.append(line + rep)
+        msg.append(border)
+        #msg = "====={0}=====\n{1}\n{2}{5}\n{3}\n{4}{5}".format(self.start_time+" 開始", q_start, q_log, a_start, a_log,"-"*20)
         return msg
 
 
