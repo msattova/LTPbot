@@ -3,6 +3,7 @@ import discord
 import re
 import random
 from datetime import datetime, timedelta, timezone
+import codecs
 
 # はじめに呼び出されるコグ
 class General(commands.Cog):
@@ -67,18 +68,35 @@ Discordで行うにあたって：
         await ctx.channel.send("ウミガメのスープを開始します")
     
     # ゲーム終了
-    @commands.command(description="ウミガメのスープを終了する際に使用して下さい。ウミガメのスープ関連コマンドを使用できなくします。また、終了の際にはプレイログを出力します。", brief="「ウミガメのスープ」を終了する時に実行するコマンドです。")
+    @commands.group(description="ウミガメのスープを終了する際に使用して下さい。ウミガメのスープ関連コマンドを使用できなくします。また、終了の際にはプレイログを出力します。", brief="「ウミガメのスープ」を終了する時に実行するコマンドです。",aliases=['fin'])
     async def finish(self, ctx):
+        if ctx.invoked_subcommand is None:
+            self.has_started = 0
+            log = self.bot.get_cog('LTPcog')
+            if log is not None:
+                msg = log.showlog()
+                for i in range(len(msg)):
+                    await ctx.channel.send(msg[i])
+            self.bot.remove_cog('LTPcog')
+            await self.bot.change_presence(activity=None)
+        await ctx.channel.send("ウミガメのスープを終了します")
+
+    '''
+    @finish.command()
+    async def file(self, ctx):
         self.has_started = 0
         log = self.bot.get_cog('LTPcog')
         if log is not None:
-            msg = log.showlog()
-            for i in range(len(msg)):
-                await ctx.channel.send(msg[i])
+            with codecs.open('log.txt','a','utf-8_sig',"ignore") as f:
+                msg = log.showlog()
+                for i in range(len(msg)):
+                    f.write(msg[i])
+            with codecs.open('log.txt','r','utf-8_sig',"ignore") as f:
+                await ctx.channel.send(file=discord.File(f))
         self.bot.remove_cog('LTPcog')
         await self.bot.change_presence(activity=None)
-        await ctx.channel.send("ウミガメのスープを終了します")
-        
+    '''
+
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot:
@@ -173,9 +191,9 @@ class LTPcog(commands.Cog):
             rep[key[i]+'r'] = tmp_rep[tmp[i]+'r']
 
 
-    @commands.command(description="""これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。""",brief="これまでに出た解答の履歴を表示します。")
+    @commands.group(description="""これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。""",brief="これまでに出た解答の履歴を表示します。")
     async def list(self, history):
-        
+
         m = ""
         line = ""
         if len(self.q_key) == 0 :
