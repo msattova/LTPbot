@@ -7,16 +7,16 @@ import codecs
 
 # はじめに呼び出されるコグ
 class General(commands.Cog):
-    # ?startコマンドを打たないと、コマンドが認識されないようにするための判断変数(:bool)
+    # ウミガメのスープ開始状態か否かの判断変数(:bool)
     has_started = 0
-    
+
     #コンストラクタ
     def __init__(self, bot):
         self.bot = bot
         self.has_started = 0
         # 以下、デバッグ用設定
-        self.bot.add_cog(LTPcog(self.bot))
-    
+        #self.bot.add_cog(LTPcog(self.bot))
+
     @commands.command(description="たまにさけびます",brief="おねこさま")
     async def neko(self, n):
         r = random.randint(0,9)
@@ -32,7 +32,7 @@ class General(commands.Cog):
         else :
             nya = "にゃーん"
         await n.channel.send(nya)
-        
+
     @commands.command(description="たまにうなります。",brief="おいぬさま")
     async def inu(self, i):
         r = random.randint(0,9)
@@ -48,7 +48,7 @@ class General(commands.Cog):
         else :
             baw = "わんっ"
         await i.channel.send(baw)
-        
+
     @commands.command(description="ウミガメのスープのルールを説明します。",brief="ウミガメのスープのルールを説明します。")
     async def readme(self, recieve):
         m = """■Lateral Thinking Puzzles (ウミガメのスープ)
@@ -58,15 +58,18 @@ Discordで行うにあたって：
 (1)質問は「」でくくること。「」内文章に対しYES・NOで応対する。
 (2)解答は『』でくくること。"""
         await recieve.channel.send(m)
-        
+
     # ゲーム開始
     @commands.command(description="ウミガメのスープを開始する際に使用して下さい。ウミガメのスープ関連コマンドを使用できるようにします。", brief="「ウミガメのスープ」を開始する時に実行するコマンドです")
     async def start(self, ctx):
-        self.has_started = 1
-        self.bot.add_cog(LTPcog(self.bot))
-        await self.bot.change_presence(activity=discord.Game(name="ウミガメのスープ"))
-        await ctx.channel.send("ウミガメのスープを開始します")
-    
+        if self.has_started == 0:
+            self.has_started = 1
+            self.bot.add_cog(LTPcog(self.bot))
+            await self.bot.change_presence(activity=discord.Game(name="ウミガメのスープ"))
+            await ctx.channel.send("ウミガメのスープを開始します")
+        else :
+            await ctx.channel.send("ウミガメのスープは既に始まっています")
+
     # ゲーム終了
     @commands.group(description="ウミガメのスープを終了する際に使用して下さい。ウミガメのスープ関連コマンドを使用できなくします。また、終了の際にはプレイログを出力します。", brief="「ウミガメのスープ」を終了する時に実行するコマンドです。",aliases=['fin'])
     async def finish(self, ctx):
@@ -80,6 +83,12 @@ Discordで行うにあたって：
             self.bot.remove_cog('LTPcog')
             await self.bot.change_presence(activity=None)
         await ctx.channel.send("ウミガメのスープを終了します")
+
+    @finish.command()
+    async def nolog(self,ctx):
+        self.has_started = 0
+        self.bot.remove_cog('LTPcog')
+        await self.bot.change_presence(activity=None)
 
     '''
     @finish.command()
@@ -101,7 +110,6 @@ Discordで行うにあたって：
     async def on_message(self, message):
         if message.author.bot:
             return
-
 
 #コグとして用いるクラスを定義
 class LTPcog(commands.Cog):
@@ -191,15 +199,13 @@ class LTPcog(commands.Cog):
             rep[key[i]+'r'] = tmp_rep[tmp[i]+'r']
 
 
-    @commands.group(description="""これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。""",brief="これまでに出た解答の履歴を表示します。")
+    @commands.command(description="""これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。""",brief="これまでに出た解答の履歴を表示します。")
     async def list(self, history):
-
         m = ""
         line = ""
         if len(self.q_key) == 0 :
             m="まだ質問がされていません"
         else:
-            
             for i in range(len(self.q_key)):
                 line = template(self.q_key[i], self.questions[self.q_key[i]], self.reply_q[self.q_key[i]+'r'])
                 m = f'{m}{line}\n'
@@ -229,10 +235,15 @@ class LTPcog(commands.Cog):
             self.reply_q[f"{k}r"] = ""
             self.timelog[k] = jst_now()
             self.timelog[f"{k}r"] = ""
-            m = f"Q{num}の変更を受理しました。"
+            m = f"{ctx.author.mention} Q{num}の変更を受理しました。"
         else:
-            m = f"Error! Q{num}はまだ存在しません"
+            m = f"{ctx.author.mention} Error! Q{num}はまだ存在しません"
         await ctx.channel.send(m)
+
+    @req.error
+    async def req_error(self, ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument):
+                await ctx.channel.send('引数が正しく指定されていません。!help reqで使用方法を確認して下さい。')
 
     @commands.command(description="""解答を修正します。
 *使用方法*
@@ -244,10 +255,16 @@ class LTPcog(commands.Cog):
             self.reply_a[f"{k}r"] = ""
             self.timelog[k] = jst_now()
             self.timelog[f"{k}r"] = ""
-            m = f"A{num}の変更を受理しました。"
+            m = f"{ctx.author.mention} A{num}の変更を受理しました。"
         else:
-            m = f"Error! A{num}はまだ存在しません"
+            m = f"{ctx.author.mention} Error! A{num}はまだ存在しません"
         await ctx.channel.send(m)
+
+    @rea.error
+    async def rea_error(self, ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument):
+                await ctx.send('引数が正しく指定されていません。!help reaで使用方法を確認して下さい。')
+
 
     """
     #なんか動かない
@@ -323,7 +340,7 @@ class LTPcog(commands.Cog):
     async def on_message(self, message):
         if message.author.bot:
             return
-        
+
         # 行頭の空白除外処理(なしに)
         #message.content.lstrip(" ")
         #message.content.lstrip("　")
@@ -357,7 +374,7 @@ class LTPcog(commands.Cog):
                 k = self.q_key[num-1]
                 m = template(k, self.questions[k], self.reply_q[f"{k}r"])
             else:
-                m = "Error! 数値に対応する質問がまだ存在しません"
+                m = f"{message.author.mention} Error! 数値に対応する質問がまだ存在しません"
             await message.channel.send(m)
 
         if message.content.startswith("A") or message.content.startswith("a") or message.content.startswith("ａ") or message.content.startswith("Ａ"):
@@ -367,12 +384,11 @@ class LTPcog(commands.Cog):
                 k = self.a_key[num-1]
                 m = template(k, self.answers[k], self.reply_a[f"{k}r"])
             else:
-                m = "Error! 数値に対応する質問がまだ存在しません"
+                m = f"{message.author.mention} Error! 数値に対応する解答がまだ存在しません"
             await message.channel.send(m)
 
         #await self.bot.process_commands(message)
-        
-        
+
     def showlog(self)-> list:
         q_start = ""
         a_start = ""
@@ -428,3 +444,4 @@ def template(s1:str, s2:str, s3:str) -> str:
 def jst_now()->str:
     JST = timezone(timedelta(hours=+9), 'JST')
     return datetime.now(JST).strftime("%Y/%m/%d %H:%M")
+
