@@ -15,7 +15,7 @@ class General(commands.Cog):
         self.bot = bot
         self.has_started = 0
         # 以下、デバッグ用設定
-        #self.bot.add_cog(LTPcog(self.bot))
+        # self.bot.add_cog(LTPcog(self.bot))
 
     @commands.command(description="たまにさけびます",brief="おねこさま")
     async def neko(self, n):
@@ -71,7 +71,7 @@ Discordで行うにあたって：
             await ctx.channel.send("ウミガメのスープは既に始まっています")
 
     # ゲーム終了
-    @commands.group(description="ウミガメのスープを終了する際に使用して下さい。ウミガメのスープ関連コマンドを使用できなくします。また、終了の際にはプレイログを出力します。", brief="「ウミガメのスープ」を終了する時に実行するコマンドです。",aliases=['fin'])
+    @commands.group(description="ウミガメのスープを終了する際に使用して下さい。ウミガメのスープ関連コマンドを使用できなくします。また、終了の際にはプレイログを出力します。\n`?finish nolog`でログを出力せずに終了します。", brief="「ウミガメのスープ」を終了する時に実行するコマンドです。",aliases=['fin'])
     async def finish(self, ctx):
         if ctx.invoked_subcommand is None:
             self.has_started = 0
@@ -132,6 +132,11 @@ class LTPcog(commands.Cog):
     a_key = []
     start_time = ""
 
+    # 正規表現オブジェクト
+    reg_q = re.compile(r'^「(.*)」$')
+    reg_a = re.compile(r'^『(.*)』$')
+    reg_reply = re.compile(r'^\D(\d+)\s.*$')
+
     #コンストラクタ
     def __init__(self, bot):
         self.bot = bot
@@ -143,8 +148,11 @@ class LTPcog(commands.Cog):
         self.q_key = []
         self.a_key = []
         self.start_time = jst_now()
+        self.reg_q = re.compile(r'^「(.*)」$')
+        self.reg_a = re.compile(r'^『(.*)』$')
+        self.reg_reply = re.compile(r'^\D(\d+)\s.*$')
 
-    #質問・解答追加処理関数
+    #質問・解答追加処理関数(qoraが1なら質問、0なら解答と認識)
     def add_to_dic(self, msg:str,qora:bool):
         if qora:
             qa = "Q"
@@ -164,7 +172,7 @@ class LTPcog(commands.Cog):
             self.timelog[f"{self.a_key[num-1]}r"] = ""
 
 
-    #質問や解答への返答処理関数
+    #質問や解答への返答処理関数(こちらも質問は1,解答は0）
     def respond(self, num:int, s:str, qora:bool):
         s = s.split()
         if qora :
@@ -199,31 +207,56 @@ class LTPcog(commands.Cog):
             rep[key[i]+'r'] = tmp_rep[tmp[i]+'r']
 
 
-    @commands.command(description="""これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。""",brief="これまでに出た解答の履歴を表示します。")
-    async def list(self, history):
+    @commands.command(description="""これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。数字で表示件数を指定することも可能です。\n`list 20`""",brief="これまでに出た質問の履歴を表示します。")
+    async def list(self, history, *n):
         m = ""
         line = ""
+        #表示件数の指定。指定なしなら、全部。指定がある場合はその分だけ。0が指定された場合も全部。
+        num = len(self.q_key) if len(n)==0 else int(n[0]) if int(n[0])!=0 else len(self.q_key)
         if len(self.q_key) == 0 :
             m="まだ質問がされていません"
+        elif num > len(self.q_key):
+            m=f"{history.author.mention} Error! 指定された数字が質問数よりも多いです"
         else:
-            for i in range(len(self.q_key)):
-                line = template(self.q_key[i], self.questions[self.q_key[i]], self.reply_q[self.q_key[i]+'r'])
-                m = f'{m}{line}\n'
+            #正数の場合は古い方からn個を、負数の場合は新しい方からn個を表示
+            if num>0:
+                for i in range(num):
+                    line = template(self.q_key[i], self.questions[self.q_key[i]], self.reply_q[self.q_key[i]+'r'])
+                    m = f'{m}{line}\n'
+            else:
+                for i in reversed(range(num*(-1))):
+                    i = (i+1)*(-1)
+                    print(i)
+                    line = template(self.q_key[i], self.questions[self.q_key[i]], self.reply_q[self.q_key[i]+'r'])
+                    m = f'{m}{line}\n'
         print(m)
         await history.channel.send(m)
 
-    @commands.command(description="""これまでに出た解答(『』で囲まれた言葉)の履歴を表示します。""",brief="これまでに出た解答の履歴を表示します。")
-    async def lista(self, history):
+    @commands.command(description="""これまでに出た解答(「」で囲まれた言葉)の履歴を表示します。数字で表示件数を指定することも可能です。\n`lista 20`""",brief="これまでに出た解答の履歴を表示します。")
+    async def lista(self, history, *n):
         m = ""
         line = ""
+        #表示件数の指定。指定なしなら、全部。指定がある場合はその分だけ。0が指定された場合も全部。
+        num = len(self.a_key) if len(n)==0 else int(n[0]) if int(n[0])!=0 else len(self.a_key)
         if len(self.a_key) == 0 :
             m="まだ解答がされていません"
+        elif num > len(self.a_key):
+            m=f"{history.author.mention} Error! 指定された数字が解答数よりも多いです"
         else:
-            for i in range(len(self.a_key)):
-                line = template(self.a_key[i], self.answers[self.a_key[i]], self.reply_a[self.a_key[i]+"r"])
-                m = f'{m}{line}\n'
-                print(m)
+            #正数の場合は古い方からn個を、負数の場合は新しい方からn個を表示
+            if num>0:
+                for i in range(num):
+                    line = template(self.a_key[i], self.answers[self.a_key[i]], self.reply_a[self.a_key[i]+'r'])
+                    m = f'{m}{line}\n'
+            else:
+                for i in reversed(range(num*(-1))):
+                    i = (i+1)*(-1)
+                    print(i)
+                    line = template(self.a_key[i], self.answers[self.a_key[i]], self.reply_a[self.a_key[i]+'r'])
+                    m = f'{m}{line}\n'
+        print(m)
         await history.channel.send(m)
+
 
     @commands.command(description="""質問を修正します。
 *使用方法*
@@ -348,44 +381,51 @@ class LTPcog(commands.Cog):
             message.content.rstrip(" ")
             message.content.rstrip("　")
 
-        # 質問への処理
+        # 質問への処理（正規表現を利用することにした）
         if message.content.startswith("「"):
-            m = message.content[1:-1]
-            self.add_to_dic(m, 1)
-            k = self.q_key[-1]
-            m = template(k, self.questions[k], self.reply_q[f"{k}r"])
-            print("{}: {}".format(k, self.questions[k]))
-            await message.channel.send(m)
+            has_matched = self.reg_q.search(message.content)
+            if has_matched is not None :
+                m = has_matched.group(1)
+                self.add_to_dic(m, 1)
+                k = self.q_key[-1]
+                m = template(k, self.questions[k], self.reply_q[f"{k}r"])
+                print("{}: {}".format(k, self.questions[k]))
+                await message.channel.send(m)
 
-        # 解答への処理
+        # 解答への処理（正規表現を利用することにした）
         if message.content.startswith("『"):
-            m = message.content[1:-1]
-            self.add_to_dic(m, 0)
-            k = self.a_key[-1]
-            print(k)
-            print(self.answers[k])
-            m = template(k, self.answers[k], self.reply_a[f"{k}r"])
-            await message.channel.send(m)
+            has_matched = self.reg_a.search(message.content)
+            if has_matched is not None :
+                m = has_matched.group(1)
+                self.add_to_dic(m, 0)
+                k = self.a_key[-1]
+                m = template(k, self.answers[k], self.reply_a[f"{k}r"])
+                print("{}: {}".format(k, self.answers[k]))
+                await message.channel.send(m)
 
         if message.content.startswith("Q") or message.content.startswith("q") or message.content.startswith("ｑ") or message.content.startswith("Ｑ"):
-            num = int(re.sub(r"\D","",message.content))
-            if len(self.q_key) > (num-1) :
-                self.respond(num, message.content, 1)
-                k = self.q_key[num-1]
-                m = template(k, self.questions[k], self.reply_q[f"{k}r"])
-            else:
-                m = f"{message.author.mention} Error! 数値に対応する質問がまだ存在しません"
-            await message.channel.send(m)
+            has_matched = self.reg_reply.search(message.content)
+            if has_matched is not None :
+                num = int(has_matched.group(1))
+                if len(self.q_key) > (num-1) :
+                    self.respond(num, message.content, 1)
+                    k = self.q_key[num-1]
+                    m = template(k, self.questions[k], self.reply_q[f"{k}r"])
+                else:
+                    m = f"{message.author.mention} Error! 質問(Q{num})はまだ存在しません"
+                await message.channel.send(m)
 
         if message.content.startswith("A") or message.content.startswith("a") or message.content.startswith("ａ") or message.content.startswith("Ａ"):
-            num = int(re.sub(r"\D","",message.content))
-            if len(self.a_key) > (num-1) :
-                self.respond(num, message.content, 0)
-                k = self.a_key[num-1]
-                m = template(k, self.answers[k], self.reply_a[f"{k}r"])
-            else:
-                m = f"{message.author.mention} Error! 数値に対応する解答がまだ存在しません"
-            await message.channel.send(m)
+            has_matched = self.reg_reply.search(message.content)
+            if has_matched is not None :
+                num = int(has_matched.group(1))
+                if len(self.a_key) > (num-1) :
+                    self.respond(num, message.content, 0)
+                    k = self.a_key[num-1]
+                    m = template(k, self.answers[k], self.reply_a[f"{k}r"])
+                else:
+                    m = f"{message.author.mention} Error! 解答(A{num})はまだ存在しません"
+                await message.channel.send(m)
 
         #await self.bot.process_commands(message)
 
