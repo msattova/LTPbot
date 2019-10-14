@@ -269,9 +269,9 @@ class LTPcog(commands.Cog):
         print(self.is_num(str(num)))
         if self.is_num(str(num))==True:
             if len(self.a_key) == 0 :
-                m="まだ質問がされていません"
+                m="まだ解答がされていません"
             elif abs(num) > len(self.a_key):
-                m=f"{history.author.mention} Error! 指定された数字が質問数よりも多いです"
+                m=f"{history.author.mention} Error! 指定された数字が解答数よりも多いです"
             else:
                 #正数の場合は古い方からn個を、負数の場合は新しい方からn個を表示
                 if num>0:
