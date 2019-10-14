@@ -117,6 +117,11 @@ class LTPcog(commands.Cog):
     questions = {}
     # A1などをキーとする解答辞書
     answers = {}
+    # playlog用発言記録ディクショナリ
+    # authors仕様
+    # キー：質問や解答に割り当てられた英数字(Q1やA1など)。
+    # 値：質問や解答を行った人の名前
+    authors = {}
     # playlog用時刻記録ディクショナリ
     # timelog仕様
     # キー：質問や解答に割り当てられた英数字(Q1やA1など)。応答に対しては、英数字末尾に'r'を追加する。
@@ -143,6 +148,7 @@ class LTPcog(commands.Cog):
         self.questions = {}
         self.answers = {}
         self.timelog = {}
+        self.authors = {}
         self.reply_q = {}
         self.reply_a = {}
         self.q_key = []
@@ -153,13 +159,14 @@ class LTPcog(commands.Cog):
         self.reg_reply = re.compile(r'^\D(\d+)\s.*$')
 
     #質問・解答追加処理関数(qoraが1なら質問、0なら解答と認識)
-    def add_to_dic(self, msg:str,qora:bool):
+    def add_to_dic(self, msg:str, qora:bool, ctx):
         if qora:
             qa = "Q"
             num = len(self.q_key)+1
             self.q_key.append(f"{qa}{num}")
             self.questions[self.q_key[num-1]] = msg
             self.reply_q[f"{self.q_key[num-1]}r"] = ""
+            self.authors[self.q_key[num-1]] = ctx.author.display_name
             self.timelog[self.q_key[num-1]] = jst_now()
             self.timelog[f"{self.q_key[num-1]}r"] = ""
         else:
@@ -168,6 +175,7 @@ class LTPcog(commands.Cog):
             self.a_key.append(f"{qa}{num}")
             self.answers[self.a_key[num-1]] = msg
             self.reply_a[f"{self.a_key[num-1]}r"] = ""
+            self.authors[self.a_key[num-1]] = ctx.author.display_name
             self.timelog[self.a_key[num-1]] = jst_now()
             self.timelog[f"{self.a_key[num-1]}r"] = ""
 
@@ -183,6 +191,15 @@ class LTPcog(commands.Cog):
             k = self.a_key[num-1]
             self.reply_a[f"{k}r"] = s[1]
             self.timelog[f"{k}r"] = jst_now()
+
+    # 文字列が数字かどうか判定
+    def is_num(self, s:str) :
+        try:
+            float(s)
+        except ValueError:
+            return False
+        else:
+            return True
 
     #番号振り直し関数
     #timelogをどうするか考える（現状では番号を振りなおすとプレイログが出力できない）
@@ -207,56 +224,75 @@ class LTPcog(commands.Cog):
             rep[key[i]+'r'] = tmp_rep[tmp[i]+'r']
 
 
-    @commands.command(description="""これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。数字で表示件数を指定することも可能です。\n`list 20`""",brief="これまでに出た質問の履歴を表示します。")
+    @commands.command(description="""これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。数字で表示件数を指定することも可能です。負数による指定も可能です。\n`?list 20`：最初の20件を表示\n`?list -20`：最後の20件を表示\n未応答の解答のみを表示することも可能です。\n`?list nr`""",brief="これまでに出た質問の履歴を表示します。数字で表示件数を指定することもできます。")
     async def list(self, history, *n):
         m = ""
         line = ""
         #表示件数の指定。指定なしなら、全部。指定がある場合はその分だけ。0が指定された場合も全部。
-        num = len(self.q_key) if len(n)==0 else int(n[0]) if int(n[0])!=0 else len(self.q_key)
-        if len(self.q_key) == 0 :
-            m="まだ質問がされていません"
-        elif num > len(self.q_key):
-            m=f"{history.author.mention} Error! 指定された数字が質問数よりも多いです"
-        else:
-            #正数の場合は古い方からn個を、負数の場合は新しい方からn個を表示
-            if num>0:
-                for i in range(num):
-                    line = template(self.q_key[i], self.questions[self.q_key[i]], self.reply_q[self.q_key[i]+'r'])
-                    m = f'{m}{line}\n'
+        num = len(self.q_key) if len(n)==0 else n[0] if self.is_num(str(n[0]))==False else int(n[0]) if int(n[0])!=0 else len(self.q_key)
+        print(num)
+        print(self.is_num(str(num)))
+        if self.is_num(str(num))==True:
+            if len(self.q_key) == 0 :
+                m="まだ質問がされていません"
+            elif abs(num) > len(self.q_key):
+                m=f"{history.author.mention} Error! 指定された数字が質問数よりも多いです"
             else:
-                for i in reversed(range(num*(-1))):
-                    i = (i+1)*(-1)
-                    print(i)
+                #正数の場合は古い方からn個を、負数の場合は新しい方からn個を表示
+                if num>0:
+                    for i in range(num):
+                        line = template(self.q_key[i], self.questions[self.q_key[i]], self.reply_q[self.q_key[i]+'r'])
+                        m = f'{m}{line}\n'
+                else:
+                    for i in reversed(range(num*(-1))):
+                        i = (i+1)*(-1)
+                        print(i)
+                        line = template(self.q_key[i], self.questions[self.q_key[i]], self.reply_q[self.q_key[i]+'r'])
+                        m = f'{m}{line}\n'
+        # 引数が「応答なしのものを表示する指定」かどうか
+        else :
+            num = len(self.q_key)
+            for i in range(num):
+                if self.reply_q[self.q_key[i]+'r'] == '' :
                     line = template(self.q_key[i], self.questions[self.q_key[i]], self.reply_q[self.q_key[i]+'r'])
                     m = f'{m}{line}\n'
         print(m)
         await history.channel.send(m)
 
-    @commands.command(description="""これまでに出た解答(「」で囲まれた言葉)の履歴を表示します。数字で表示件数を指定することも可能です。\n`lista 20`""",brief="これまでに出た解答の履歴を表示します。")
+    @commands.command(description="""これまでに出た解答(『』で囲まれた言葉)の履歴を表示します。数字で表示件数を指定することも可能です。負数による指定も可能です。\n`?list 20`：最初の20件を表示\n`?list -20`：最後の20件を表示\n未応答の解答のみを表示することも可能です。\n`?list nr`""",brief="これまでに出た解答の履歴を表示します。数字で表示件数を指定することもできます。")
     async def lista(self, history, *n):
         m = ""
         line = ""
         #表示件数の指定。指定なしなら、全部。指定がある場合はその分だけ。0が指定された場合も全部。
-        num = len(self.a_key) if len(n)==0 else int(n[0]) if int(n[0])!=0 else len(self.a_key)
-        if len(self.a_key) == 0 :
-            m="まだ解答がされていません"
-        elif num > len(self.a_key):
-            m=f"{history.author.mention} Error! 指定された数字が解答数よりも多いです"
-        else:
-            #正数の場合は古い方からn個を、負数の場合は新しい方からn個を表示
-            if num>0:
-                for i in range(num):
-                    line = template(self.a_key[i], self.answers[self.a_key[i]], self.reply_a[self.a_key[i]+'r'])
-                    m = f'{m}{line}\n'
+        num = len(self.a_key) if len(n)==0 else n[0] if self.is_num(str(n[0]))==False else int(n[0]) if int(n[0])!=0 else len(self.a_key)
+        print(num)
+        print(self.is_num(str(num)))
+        if self.is_num(str(num))==True:
+            if len(self.a_key) == 0 :
+                m="まだ質問がされていません"
+            elif abs(num) > len(self.a_key):
+                m=f"{history.author.mention} Error! 指定された数字が質問数よりも多いです"
             else:
-                for i in reversed(range(num*(-1))):
-                    i = (i+1)*(-1)
-                    print(i)
+                #正数の場合は古い方からn個を、負数の場合は新しい方からn個を表示
+                if num>0:
+                    for i in range(num):
+                        line = template(self.a_key[i], self.answers[self.a_key[i]], self.reply_a[self.a_key[i]+'r'])
+                        m = f'{m}{line}\n'
+                else:
+                    for i in reversed(range(num*(-1))):
+                        i = (i+1)*(-1)
+                        print(i)
+                        line = template(self.a_key[i], self.answers[self.a_key[i]], self.reply_a[self.a_key[i]+'r'])
+                        m = f'{m}{line}\n'
+        # 引数が「応答なしのものを表示する指定」かどうか
+        else :
+            num = len(self.a_key)
+            for i in range(num):
+                if self.reply_a[self.a_key[i]+'r'] == '' :
                     line = template(self.a_key[i], self.answers[self.a_key[i]], self.reply_a[self.a_key[i]+'r'])
                     m = f'{m}{line}\n'
         print(m)
         await history.channel.send(m)
-
 
     @commands.command(description="""質問を修正します。
 *使用方法*
@@ -386,7 +422,7 @@ class LTPcog(commands.Cog):
             has_matched = self.reg_q.search(message.content)
             if has_matched is not None :
                 m = has_matched.group(1)
-                self.add_to_dic(m, 1)
+                self.add_to_dic(m, 1, message)
                 k = self.q_key[-1]
                 m = template(k, self.questions[k], self.reply_q[f"{k}r"])
                 print("{}: {}".format(k, self.questions[k]))
@@ -397,7 +433,7 @@ class LTPcog(commands.Cog):
             has_matched = self.reg_a.search(message.content)
             if has_matched is not None :
                 m = has_matched.group(1)
-                self.add_to_dic(m, 0)
+                self.add_to_dic(m, 0, message)
                 k = self.a_key[-1]
                 m = template(k, self.answers[k], self.reply_a[f"{k}r"])
                 print("{}: {}".format(k, self.answers[k]))
@@ -447,7 +483,7 @@ class LTPcog(commands.Cog):
             for i in range(len(self.q_key)):
                 kr = self.q_key[i]+'r'
                 print(kr)
-                line = f"{self.q_key[i]}: {self.questions[self.q_key[i]]} ({self.timelog[self.q_key[i]]})\n"
+                line = f"{self.q_key[i]}: {self.questions[self.q_key[i]]} ({self.timelog[self.q_key[i]]}) by {self.authors[self.q_key[i]]}\n"
                 rep = "{} ({})\n".format((" "*4)+"<- "+self.reply_q[kr], self.timelog[kr]) \
                   if self.reply_q[kr] else \
                   "{}\n".format((" "*4)+"<- No reply")
@@ -462,7 +498,7 @@ class LTPcog(commands.Cog):
             for i in range(len(self.a_key)):
                 kr = self.a_key[i]+'r'
                 print(kr)
-                line = f"{self.a_key[i]}: {self.answers[self.a_key[i]]} ({self.timelog[self.a_key[i]]})\n"
+                line = f"{self.a_key[i]}: {self.answers[self.a_key[i]]} ({self.timelog[self.a_key[i]]}) by {self.authors[self.a_key[i]]}\n"
                 rep = "{} ({})\n".format((" "*4)+"<- "+self.reply_a[kr], self.timelog[kr]) \
                   if self.reply_a[kr] else \
                   "{}\n".format((" "*4)+"<- No reply")
