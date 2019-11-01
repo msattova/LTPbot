@@ -223,163 +223,148 @@ class LTPcog(commands.Cog):
             dic[key[i]] = tmp_dic[tmp[i]]
             rep[key[i]+'r'] = tmp_rep[tmp[i]+'r']
 
-
-    @commands.command(description="""これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。数字で表示件数を指定することも可能です。負数による指定も可能です。\n`?list 20`：最初の20件を表示\n`?list -20`：最後の20件を表示\n未応答の解答のみを表示することも可能です。\n`?list nr`""",brief="これまでに出た質問の履歴を表示します。数字で表示件数を指定することもできます。")
-    async def list(self, history, *n):
+    # 履歴表示用関数
+    def show_list(self, ctx, key, mentions, reply, n) -> str:
         m = ""
         line = ""
         #表示件数の指定。指定なしなら、全部。指定がある場合はその分だけ。0が指定された場合も全部。
-        num = len(self.q_key) if len(n)==0 else n[0] if self.is_num(str(n[0]))==False else int(n[0]) if int(n[0])!=0 else len(self.q_key)
+        num = len(key) if len(n)==0 else n[0] if self.is_num(str(n[0]))==False else int(n[0]) if int(n[0])!=0 else len(key)
         print(num)
         print(self.is_num(str(num)))
+        # 引数が数字かどうか
         if self.is_num(str(num))==True:
-            if len(self.q_key) == 0 :
+            if len(key) == 0 :
                 m="まだ質問がされていません"
-            elif abs(num) > len(self.q_key):
-                m=f"{history.author.mention} Error! 指定された数字が質問数よりも多いです"
+            elif abs(num) > len(key):
+                m=f"{ctx.author.mention} Error! 指定された数字が質問数よりも多いです"
             else:
                 #正数の場合は古い方からn個を、負数の場合は新しい方からn個を表示
                 if num>0:
                     for i in range(num):
-                        line = template(self.q_key[i], self.questions[self.q_key[i]], self.reply_q[self.q_key[i]+'r'])
+                        line = template(key[i], mentions[key[i]], reply[key[i]+'r'])
                         m = f'{m}{line}\n'
                 else:
                     for i in reversed(range(num*(-1))):
                         i = (i+1)*(-1)
                         print(i)
-                        line = template(self.q_key[i], self.questions[self.q_key[i]], self.reply_q[self.q_key[i]+'r'])
+                        line = template(key[i], mentions[key[i]], reply[key[i]+'r'])
                         m = f'{m}{line}\n'
-        # 引数が「応答なしのものを表示する指定」かどうか
         else :
-            num = len(self.q_key)
-            for i in range(num):
-                if self.reply_q[self.q_key[i]+'r'] == '' :
-                    line = template(self.q_key[i], self.questions[self.q_key[i]], self.reply_q[self.q_key[i]+'r'])
-                    m = f'{m}{line}\n'
+            # rならば応答ありのものを、iならば応答に"!"を含むもののみを、それ以外の場合は応答のないものを表示
+            if num == 'r':
+                num = len(key)
+                for i in range(num):
+                    if reply[key[i]+'r'] != '' :
+                        line = template(key[i], mentions[key[i]], reply[key[i]+'r'])
+                        m = f'{m}{line}\n'
+            elif num == 'i':
+                num = len(key)
+                for i in range(num):
+                    if '!' in reply[key[i]+'r'] or '！' in reply[key[i]+'r']:
+                        line = template(key[i], mentions[key[i]], reply[key[i]+'r'])
+                        m = f'{m}{line}\n'
+            else:
+                num = len(key)
+                for i in range(num):
+                    if reply[key[i]+'r'] == '' :
+                        line = template(key[i], mentions[key[i]], reply[key[i]+'r'])
+                        m = f'{m}{line}\n'
+        return m
+
+    def amend(self, ctx, key, mentions, reply, num:int, s:str) -> str:
+        if len(key) > (num-1) :
+            k = key[num-1]
+            print(k)
+            if self.authors[k] == ctx.author.display_name:
+                mentions[k] = s
+                reply[f"{k}r"] = ""
+                self.timelog[k] = jst_now()
+                self.timelog[f"{k}r"] = ""
+                m = f"{ctx.author.mention} Q{num}の変更を受理しました。"
+            else:
+                m = f"不正ユーザーです。質問の訂正はその質問をした本人にのみ許されています。"
+        else:
+            m = f"{ctx.author.mention} Error! Q{num}はまだ存在しません"
+            print(m)
+        return m
+
+    def showlog(self)-> list:
+        q_start = ""
+        a_start = ""
+        line = ""
+        q_log = ""
+        a_log = ""
+        msg = []
+        border = "-"*16
+        msg.append(f"===={self.start_time} 開始====")
+        if len(self.q_key) == 0 :
+            q_start = "【質問がありません】"
+            msg.append(q_start)
+        else:
+            q_start = "【質問ログ】"
+            msg.append(q_start)
+            for i in range(len(self.q_key)):
+                kr = self.q_key[i]+'r'
+                print(kr)
+                line = f"{self.q_key[i]}: {self.questions[self.q_key[i]]} ({self.timelog[self.q_key[i]]}) by {self.authors[self.q_key[i]]}\n"
+                rep = "{} ({})\n".format((" "*4)+"<- "+self.reply_q[kr], self.timelog[kr]) \
+                  if self.reply_q[kr] else \
+                  "{}\n".format((" "*4)+"<- No reply")
+                msg.append(line + rep)
+        msg.append(border)
+        if len(self.a_key) == 0 :
+            a_start = "【解答がありません】"
+            msg.append(a_start)
+        else:
+            a_start = "【解答ログ】"
+            msg.append(a_start)
+            for i in range(len(self.a_key)):
+                kr = self.a_key[i]+'r'
+                print(kr)
+                line = f"{self.a_key[i]}: {self.answers[self.a_key[i]]} ({self.timelog[self.a_key[i]]}) by {self.authors[self.a_key[i]]}\n"
+                rep = "{} ({})\n".format((" "*4)+"<- "+self.reply_a[kr], self.timelog[kr]) \
+                  if self.reply_a[kr] else \
+                  "{}\n".format((" "*4)+"<- No reply")
+                msg.append(line + rep)
+        msg.append(border)
+        return msg
+
+    @commands.command(description="これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。数字で表示件数を指定することも可能です。負数による指定も可能です。\n`?list 20`：最初の20件を表示\n`?list -20`：最後の20件を表示\n未応答の解答のみを表示することも可能です。\n`?list nr`",brief="これまでに出た質問の履歴を表示します。数字で表示件数を指定することもできます。")
+    async def list(self, history, *n):
+        m = self.show_list(history, self.q_key, self.questions, self.reply_q, n)
         print(m)
         await history.channel.send(m)
 
     @commands.command(description="""これまでに出た解答(『』で囲まれた言葉)の履歴を表示します。数字で表示件数を指定することも可能です。負数による指定も可能です。\n`?list 20`：最初の20件を表示\n`?list -20`：最後の20件を表示\n未応答の解答のみを表示することも可能です。\n`?list nr`""",brief="これまでに出た解答の履歴を表示します。数字で表示件数を指定することもできます。")
     async def lista(self, history, *n):
-        m = ""
-        line = ""
-        #表示件数の指定。指定なしなら、全部。指定がある場合はその分だけ。0が指定された場合も全部。
-        num = len(self.a_key) if len(n)==0 else n[0] if self.is_num(str(n[0]))==False else int(n[0]) if int(n[0])!=0 else len(self.a_key)
-        print(num)
-        print(self.is_num(str(num)))
-        if self.is_num(str(num))==True:
-            if len(self.a_key) == 0 :
-                m="まだ解答がされていません"
-            elif abs(num) > len(self.a_key):
-                m=f"{history.author.mention} Error! 指定された数字が解答数よりも多いです"
-            else:
-                #正数の場合は古い方からn個を、負数の場合は新しい方からn個を表示
-                if num>0:
-                    for i in range(num):
-                        line = template(self.a_key[i], self.answers[self.a_key[i]], self.reply_a[self.a_key[i]+'r'])
-                        m = f'{m}{line}\n'
-                else:
-                    for i in reversed(range(num*(-1))):
-                        i = (i+1)*(-1)
-                        print(i)
-                        line = template(self.a_key[i], self.answers[self.a_key[i]], self.reply_a[self.a_key[i]+'r'])
-                        m = f'{m}{line}\n'
-        # 引数が「応答なしのものを表示する指定」かどうか
-        else :
-            num = len(self.a_key)
-            for i in range(num):
-                if self.reply_a[self.a_key[i]+'r'] == '' :
-                    line = template(self.a_key[i], self.answers[self.a_key[i]], self.reply_a[self.a_key[i]+'r'])
-                    m = f'{m}{line}\n'
+        m = self.show_list(history, self.a_key, self.answers, self.reply_a, n)
         print(m)
         await history.channel.send(m)
 
     @commands.command(description="""質問を修正します。
 *使用方法*
 ?req (修正したい質問番号) (質問の修正)""",brief="質問の修正ができます。")
-    async def req(self, ctx,num:int, s:str):
-        if len(self.q_key) > (num-1) :
-            k = self.q_key[num-1]
-            self.questions[k] = s
-            self.reply_q[f"{k}r"] = ""
-            self.timelog[k] = jst_now()
-            self.timelog[f"{k}r"] = ""
-            m = f"{ctx.author.mention} Q{num}の変更を受理しました。"
-        else:
-            m = f"{ctx.author.mention} Error! Q{num}はまだ存在しません"
+    async def req(self, ctx, num:int, s:str):
+        m = self.amend(ctx, self.q_key, self.questions, self.reply_q, num, s)
         await ctx.channel.send(m)
 
     @req.error
     async def req_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
-                await ctx.channel.send('引数が正しく指定されていません。!help reqで使用方法を確認して下さい。')
+                await ctx.channel.send(f'{ctx.author.mention} 引数が正しく指定されていません。!help reqで使用方法を確認して下さい。')
 
     @commands.command(description="""解答を修正します。
 *使用方法*
 ?rea (修正したい解答番号) (解答の修正)""",brief="解答の修正ができます。")
-    async def rea(self, ctx,num:int, s:str):
-        if len(self.a_key) > (num-1) :
-            k = self.a_key[num-1]
-            self.answers[k] = s
-            self.reply_a[f"{k}r"] = ""
-            self.timelog[k] = jst_now()
-            self.timelog[f"{k}r"] = ""
-            m = f"{ctx.author.mention} A{num}の変更を受理しました。"
-        else:
-            m = f"{ctx.author.mention} Error! A{num}はまだ存在しません"
+    async def rea(self, ctx, num:int, s:str):
+        m = self.amend(ctx, self.a_key, self.answers, self.reply_a, num, s)
         await ctx.channel.send(m)
 
     @rea.error
     async def rea_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
-                await ctx.send('引数が正しく指定されていません。!help reaで使用方法を確認して下さい。')
+                await ctx.channel.send(f'{ctx.author.mention} 引数が正しく指定されていません。!help reaで使用方法を確認して下さい。')
 
-
-    """
-    #なんか動かない
-    @commands.group(description='''質問や解答の履歴をBOTから削除し、listコマンド等で参照できないようにします。このコマンドによって削除された質問や解答は、チャンネルの履歴には残ります。全削除は!delallで実行して下さい。
-*使用方法*
-!delete q (質問番号) : 指定した質問番号に対応する質問の履歴を削除します。
-!delete a (解答番号) : 指定した解答番号に対応する解答の履歴を削除します。''',brief="質問や解答の履歴をBOTから削除します。",aliases=['del'])
-    async def delete(self, ctx):
-        if ctx.invoked_subcommand is None:
-            await ctx.send("Error! 引数が指定されていません。!help deleteで使用方法を確認して下さい。")
-
-    @delete.command(aliases=['q'])
-    async def question(self, ctx, num:int):
-        print(num)
-        if len(self.q_key)>(num-1):
-            k = self.q_key.pop(num-1)
-            delq = self.questions.pop(k)
-            delqr = self.reply_q.pop(f"{k}r")
-            del self.timelog[k]
-            content = template(k, delq, delqr)
-            m = f"“{content}”を削除しました。"
-            self.reindex(self.q_key,self.questions,self.reply_q,1)
-        else:
-            m = "Error! Q"+str(num)+"はまだ存在しません。"
-        await ctx.channel.send(m)
-
-    @delete.command(aliases=['a'])
-    async def answer(self, ctx, num:int):
-        print(num)
-        if len(self.a_key)>(num-1):
-            k = self.a_key.pop(num-1)
-            delq = self.answers.pop(k)
-            delqr = self.reply_a.pop(f"{k}r")
-            del self.timelog[k]
-            content = template(k, dela, delar)
-            m = f"“{content}”を削除しました。"
-            self.reindex(self.a_key,self.answers,self.reply_a,0)
-        else:
-            m = "Error! A"+str(num)+"はまだ存在しません。"
-        await ctx.channel.send(m)
-
-    @delete.error
-    async def delete_error(self, ctx, error):
-        if isinstance(error, commands.BadArgument):
-            await ctx.send('引数が正しく指定されていません。!help deleteで使用方法を確認して下さい。')
-    """
 
     @commands.command(description="""質問や解答の履歴をBOTから削除し、listコマンド等で参照できないようにします。このコマンドによって削除された質問や解答は、チャンネルの履歴には残ります。
 *使用方法*
@@ -465,47 +450,6 @@ class LTPcog(commands.Cog):
 
         #await self.bot.process_commands(message)
 
-    def showlog(self)-> list:
-        q_start = ""
-        a_start = ""
-        line = ""
-        q_log = ""
-        a_log = ""
-        msg = []
-        border = "-"*16
-        msg.append(f"===={self.start_time} 開始====")
-        if len(self.q_key) == 0 :
-            q_start = "【質問がありません】"
-            msg.append(q_start)
-        else:
-            q_start = "【質問ログ】"
-            msg.append(q_start)
-            for i in range(len(self.q_key)):
-                kr = self.q_key[i]+'r'
-                print(kr)
-                line = f"{self.q_key[i]}: {self.questions[self.q_key[i]]} ({self.timelog[self.q_key[i]]}) by {self.authors[self.q_key[i]]}\n"
-                rep = "{} ({})\n".format((" "*4)+"<- "+self.reply_q[kr], self.timelog[kr]) \
-                  if self.reply_q[kr] else \
-                  "{}\n".format((" "*4)+"<- No reply")
-                msg.append(line + rep)
-        msg.append(border)
-        if len(self.a_key) == 0 :
-            a_start = "【解答がありません】"
-            msg.append(a_start)
-        else:
-            a_start = "【解答ログ】"
-            msg.append(a_start)
-            for i in range(len(self.a_key)):
-                kr = self.a_key[i]+'r'
-                print(kr)
-                line = f"{self.a_key[i]}: {self.answers[self.a_key[i]]} ({self.timelog[self.a_key[i]]}) by {self.authors[self.a_key[i]]}\n"
-                rep = "{} ({})\n".format((" "*4)+"<- "+self.reply_a[kr], self.timelog[kr]) \
-                  if self.reply_a[kr] else \
-                  "{}\n".format((" "*4)+"<- No reply")
-                msg.append(line + rep)
-        msg.append(border)
-        #msg = "====={0}=====\n{1}\n{2}{5}\n{3}\n{4}{5}".format(self.start_time+" 開始", q_start, q_log, a_start, a_log,"-"*20)
-        return msg
 
 
 # BOT本体からコグを読み込む際に呼び出される関数
