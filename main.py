@@ -7,7 +7,7 @@ import traceback
 TOKEN = os.environ["TOKEN"]
 BOT_PREFIX = '?'
 INITIAL_EXTENSIONS = [
-        'cogs.LTPcog'
+        'cogs.General'
 ]
 
 class LTPbot(commands.Bot):

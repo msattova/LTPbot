@@ -5,111 +5,7 @@ import random
 from datetime import datetime, timedelta, timezone
 import codecs
 
-# はじめに呼び出されるコグ
-class General(commands.Cog):
-    # ウミガメのスープ開始状態か否かの判断変数(:bool)
-    has_started = 0
 
-    #コンストラクタ
-    def __init__(self, bot):
-        self.bot = bot
-        self.has_started = 0
-        # 以下、デバッグ用設定
-        # self.bot.add_cog(LTPcog(self.bot))
-
-    @commands.command(description="たまにさけびます",brief="おねこさま")
-    async def neko(self, n):
-        r = random.randint(0,9)
-        nya = "みゃー"
-        if r == 0:
-            nya = "なーご"
-        elif r%5 == 0:
-            r = random.randint(0,9)
-            if r%4 == 0:
-                nya = "ﾐｬ゛ｰｯ!"
-            else:
-                pass
-        else :
-            nya = "にゃーん"
-        await n.channel.send(nya)
-
-    @commands.command(description="たまにうなります。",brief="おいぬさま")
-    async def inu(self, i):
-        r = random.randint(0,9)
-        baw = "バウワウ！"
-        if r == 0:
-            baw = "くぅーん"
-        elif r%5 == 0:
-            r = random.randint(0,9)
-            if r%4 == 0:
-                baw = "Grrrrr....."
-            else:
-                pass
-        else :
-            baw = "わんっ"
-        await i.channel.send(baw)
-
-    @commands.command(description="ウミガメのスープのルールを説明します。",brief="ウミガメのスープのルールを説明します。")
-    async def readme(self, recieve):
-        m = """■Lateral Thinking Puzzles (ウミガメのスープ)
-「出題者」が出した文章の真意を「質問者」が解く遊び。
-「質問者」はYES・NOで答えられる質問を「出題者」にすることができる。
-Discordで行うにあたって：
-(1)質問は「」でくくること。「」内文章に対しYES・NOで応対する。
-(2)解答は『』でくくること。"""
-        await recieve.channel.send(m)
-
-    # ゲーム開始
-    @commands.command(description="ウミガメのスープを開始する際に使用して下さい。ウミガメのスープ関連コマンドを使用できるようにします。", brief="「ウミガメのスープ」を開始する時に実行するコマンドです")
-    async def start(self, ctx):
-        if self.has_started == 0:
-            self.has_started = 1
-            self.bot.add_cog(LTPcog(self.bot))
-            await self.bot.change_presence(activity=discord.Game(name="ウミガメのスープ"))
-            await ctx.channel.send("ウミガメのスープを開始します")
-        else :
-            await ctx.channel.send("ウミガメのスープは既に始まっています")
-
-    # ゲーム終了
-    @commands.group(description="ウミガメのスープを終了する際に使用して下さい。ウミガメのスープ関連コマンドを使用できなくします。また、終了の際にはプレイログを出力します。\n`?finish nolog`でログを出力せずに終了します。", brief="「ウミガメのスープ」を終了する時に実行するコマンドです。",aliases=['fin'])
-    async def finish(self, ctx):
-        if ctx.invoked_subcommand is None:
-            self.has_started = 0
-            log = self.bot.get_cog('LTPcog')
-            if log is not None:
-                msg = log.showlog()
-                for i in range(len(msg)):
-                    await ctx.channel.send(msg[i])
-            self.bot.remove_cog('LTPcog')
-            await self.bot.change_presence(activity=None)
-        await ctx.channel.send("ウミガメのスープを終了します")
-
-    @finish.command()
-    async def nolog(self,ctx):
-        self.has_started = 0
-        self.bot.remove_cog('LTPcog')
-        await self.bot.change_presence(activity=None)
-
-    '''
-    @finish.command()
-    async def file(self, ctx):
-        self.has_started = 0
-        log = self.bot.get_cog('LTPcog')
-        if log is not None:
-            with codecs.open('log.txt','a','utf-8_sig',"ignore") as f:
-                msg = log.showlog()
-                for i in range(len(msg)):
-                    f.write(msg[i])
-            with codecs.open('log.txt','r','utf-8_sig',"ignore") as f:
-                await ctx.channel.send(file=discord.File(f))
-        self.bot.remove_cog('LTPcog')
-        await self.bot.change_presence(activity=None)
-    '''
-
-    @commands.Cog.listener()
-    async def on_message(self, message):
-        if message.author.bot:
-            return
 
 #コグとして用いるクラスを定義
 class LTPcog(commands.Cog):
@@ -224,7 +120,7 @@ class LTPcog(commands.Cog):
             rep[key[i]+'r'] = tmp_rep[tmp[i]+'r']
 
     # 履歴表示用関数
-    def show_list(self, ctx, key, mentions, reply, n) -> str:
+    def show_list(self, ctx, key, mentions, reply, n, tmp:str) -> str:
         m = ""
         line = ""
         #表示件数の指定。指定なしなら、全部。指定がある場合はその分だけ。0が指定された場合も全部。
@@ -234,9 +130,9 @@ class LTPcog(commands.Cog):
         # 引数が数字かどうか
         if self.is_num(str(num))==True:
             if len(key) == 0 :
-                m="まだ質問がされていません"
+                m= f"{ctx.author.mention} まだ{tmp}がされていません"
             elif abs(num) > len(key):
-                m=f"{ctx.author.mention} Error! 指定された数字が質問数よりも多いです"
+                m= f"{ctx.author.mention} Error! 指定された数字が{tmp}数よりも多いです"
             else:
                 #正数の場合は古い方からn個を、負数の場合は新しい方からn個を表示
                 if num>0:
@@ -271,7 +167,7 @@ class LTPcog(commands.Cog):
                         m = f'{m}{line}\n'
         return m
 
-    def amend(self, ctx, key, mentions, reply, num:int, s:str) -> str:
+    def amend(self, ctx, key, mentions, reply, num:int, s:str, tmp:str) -> str:
         if len(key) > (num-1) :
             k = key[num-1]
             print(k)
@@ -280,11 +176,12 @@ class LTPcog(commands.Cog):
                 reply[f"{k}r"] = ""
                 self.timelog[k] = jst_now()
                 self.timelog[f"{k}r"] = ""
-                m = f"{ctx.author.mention} Q{num}の変更を受理しました。"
+                qa = 'Q' if tmp=='質問' else 'A'
+                m = f"{ctx.author.mention} {qa}{num}の変更を受理しました。"
             else:
-                m = f"不正ユーザーです。質問の訂正はその質問をした本人にのみ許されています。"
+                m = f"{ctx.author.mention} 不正ユーザーです。{tmp}の訂正はその質問をした本人にのみ許されています。"
         else:
-            m = f"{ctx.author.mention} Error! Q{num}はまだ存在しません"
+            m = f"{ctx.author.mention} Error! {qa}{num}はまだ存在しません"
             print(m)
         return m
 
@@ -296,6 +193,7 @@ class LTPcog(commands.Cog):
         a_log = ""
         msg = []
         border = "-"*16
+        container = ""
         msg.append(f"===={self.start_time} 開始====")
         if len(self.q_key) == 0 :
             q_start = "【質問がありません】"
@@ -331,13 +229,13 @@ class LTPcog(commands.Cog):
 
     @commands.command(description="これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。数字で表示件数を指定することも可能です。負数による指定も可能です。\n`?list 20`：最初の20件を表示\n`?list -20`：最後の20件を表示\n未応答の解答のみを表示することも可能です。\n`?list nr`",brief="これまでに出た質問の履歴を表示します。数字で表示件数を指定することもできます。")
     async def list(self, history, *n):
-        m = self.show_list(history, self.q_key, self.questions, self.reply_q, n)
+        m = self.show_list(history, self.q_key, self.questions, self.reply_q, n, '質問')
         print(m)
         await history.channel.send(m)
 
     @commands.command(description="""これまでに出た解答(『』で囲まれた言葉)の履歴を表示します。数字で表示件数を指定することも可能です。負数による指定も可能です。\n`?list 20`：最初の20件を表示\n`?list -20`：最後の20件を表示\n未応答の解答のみを表示することも可能です。\n`?list nr`""",brief="これまでに出た解答の履歴を表示します。数字で表示件数を指定することもできます。")
     async def lista(self, history, *n):
-        m = self.show_list(history, self.a_key, self.answers, self.reply_a, n)
+        m = self.show_list(history, self.a_key, self.answers, self.reply_a, n, '解答')
         print(m)
         await history.channel.send(m)
 
@@ -345,7 +243,7 @@ class LTPcog(commands.Cog):
 *使用方法*
 ?req (修正したい質問番号) (質問の修正)""",brief="質問の修正ができます。")
     async def req(self, ctx, num:int, s:str):
-        m = self.amend(ctx, self.q_key, self.questions, self.reply_q, num, s)
+        m = self.amend(ctx, self.q_key, self.questions, self.reply_q, num, s, '質問')
         await ctx.channel.send(m)
 
     @req.error
@@ -357,7 +255,7 @@ class LTPcog(commands.Cog):
 *使用方法*
 ?rea (修正したい解答番号) (解答の修正)""",brief="解答の修正ができます。")
     async def rea(self, ctx, num:int, s:str):
-        m = self.amend(ctx, self.a_key, self.answers, self.reply_a, num, s)
+        m = self.amend(ctx, self.a_key, self.answers, self.reply_a, num, s, '解答')
         await ctx.channel.send(m)
 
     @rea.error
@@ -449,12 +347,6 @@ class LTPcog(commands.Cog):
                 await message.channel.send(m)
 
         #await self.bot.process_commands(message)
-
-
-
-# BOT本体からコグを読み込む際に呼び出される関数
-def setup(bot):
-    bot.add_cog(General(bot))
 
 # 定型文生成関数
 def template(s1:str, s2:str, s3:str) -> str:
