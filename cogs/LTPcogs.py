@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, timezone
 import codecs
 
 
-
 #コグとして用いるクラスを定義
 class LTPcog(commands.Cog):
     # Q1などをキーとする質問辞書
@@ -55,26 +54,14 @@ class LTPcog(commands.Cog):
         self.reg_reply = re.compile(r'^\D(\d+)\s.*$')
 
     #質問・解答追加処理関数(qoraが1なら質問、0なら解答と認識)
-    def add_to_dic(self, msg:str, qora:bool, ctx):
-        if qora:
-            qa = "Q"
-            num = len(self.q_key)+1
-            self.q_key.append(f"{qa}{num}")
-            self.questions[self.q_key[num-1]] = msg
-            self.reply_q[f"{self.q_key[num-1]}r"] = ""
-            self.authors[self.q_key[num-1]] = ctx.author.display_name
-            self.timelog[self.q_key[num-1]] = jst_now()
-            self.timelog[f"{self.q_key[num-1]}r"] = ""
-        else:
-            qa = "A"
-            num = len(self.a_key)+1
-            self.a_key.append(f"{qa}{num}")
-            self.answers[self.a_key[num-1]] = msg
-            self.reply_a[f"{self.a_key[num-1]}r"] = ""
-            self.authors[self.a_key[num-1]] = ctx.author.display_name
-            self.timelog[self.a_key[num-1]] = jst_now()
-            self.timelog[f"{self.a_key[num-1]}r"] = ""
-
+    def add_to_dic(self, msg:str, qora:bool, ctx, key, mentions, reply):
+        qa = "Q" if qora else "A"
+        num = len(key)+1
+        key.append(f"{qa}{num}")
+        mentions[key[num-1]] = msg
+        reply[f"{key[num-1]}r"] = ""
+        self.authors[key[num-1]] = ctx.author.display_name
+        self.timelog[key[num-1]] = jst_now()
 
     #質問や解答への返答処理関数(こちらも質問は1,解答は0）
     def respond(self, num:int, s:str, qora:bool):
@@ -305,7 +292,7 @@ class LTPcog(commands.Cog):
             has_matched = self.reg_q.search(message.content)
             if has_matched is not None :
                 m = has_matched.group(1)
-                self.add_to_dic(m, 1, message)
+                self.add_to_dic(m, 1, message, self.q_key, self.questions, self.reply_q)
                 k = self.q_key[-1]
                 m = template(k, self.questions[k], self.reply_q[f"{k}r"])
                 print("{}: {}".format(k, self.questions[k]))
@@ -316,7 +303,7 @@ class LTPcog(commands.Cog):
             has_matched = self.reg_a.search(message.content)
             if has_matched is not None :
                 m = has_matched.group(1)
-                self.add_to_dic(m, 0, message)
+                self.add_to_dic(m, 0, message, self.q_key, self.answers, self.reply_a)
                 k = self.a_key[-1]
                 m = template(k, self.answers[k], self.reply_a[f"{k}r"])
                 print("{}: {}".format(k, self.answers[k]))
