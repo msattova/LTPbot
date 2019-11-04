@@ -84,28 +84,6 @@ class LTPcog(commands.Cog):
         else:
             return True
 
-    #番号振り直し関数
-    #timelogをどうするか考える（現状では番号を振りなおすとプレイログが出力できない）
-    def reindex(self, key:list, dic:dict, rep:dict, qora:bool):
-        num = len(key)
-        # tmp = keyではtmpとkeyは同じデータを参照してしまう
-        tmp = key.copy()
-        qa = "Q" if qora else "A"
-        tmp_dic = dic.copy()
-        tmp_rep = rep.copy()
-        tmp_log = timelog.copy()
-        dic.clear()
-        rep.clear()
-        timelog.clear()
-        for i in range(num):
-            print(f"{key[i]} to {qa}{i+1}")
-            key[i] = f"{qa}{i+1}"
-        for i in range(num):
-            print(f"key = {key[i]}")
-            print(f"tmp_dic = {tmp_dic[tmp[i]]}")
-            dic[key[i]] = tmp_dic[tmp[i]]
-            rep[key[i]+'r'] = tmp_rep[tmp[i]+'r']
-
     # 履歴表示用関数
     def show_list(self, ctx, key, mentions, reply, n, tmp:str) -> str:
         m = ""
@@ -172,6 +150,16 @@ class LTPcog(commands.Cog):
             print(m)
         return m
 
+    def make_lines(self, key, mentions, reply, msg):
+        for i in key :
+            kr = i+'r'
+            print(kr)
+            line = f"{i}: {mentions[i]} ({self.timelog[i]}) by {self.authors[i]}\n"
+            rep = "{} ({})\n".format((" "*4)+"<- "+reply[kr], self.timelog[kr]) \
+                if reply[kr] else \
+                "{}\n".format((" "*4)+"<- No reply")
+            msg.append(line+rep)
+
     def showlog(self)-> list:
         q_start = ""
         a_start = ""
@@ -188,14 +176,7 @@ class LTPcog(commands.Cog):
         else:
             q_start = "【質問ログ】"
             msg.append(q_start)
-            for i in range(len(self.q_key)):
-                kr = self.q_key[i]+'r'
-                print(kr)
-                line = f"{self.q_key[i]}: {self.questions[self.q_key[i]]} ({self.timelog[self.q_key[i]]}) by {self.authors[self.q_key[i]]}\n"
-                rep = "{} ({})\n".format((" "*4)+"<- "+self.reply_q[kr], self.timelog[kr]) \
-                  if self.reply_q[kr] else \
-                  "{}\n".format((" "*4)+"<- No reply")
-                msg.append(line + rep)
+            self.make_lines(self.q_key, self.questions, self.reply_q, msg)
         msg.append(border)
         if len(self.a_key) == 0 :
             a_start = "【解答がありません】"
@@ -203,14 +184,7 @@ class LTPcog(commands.Cog):
         else:
             a_start = "【解答ログ】"
             msg.append(a_start)
-            for i in range(len(self.a_key)):
-                kr = self.a_key[i]+'r'
-                print(kr)
-                line = f"{self.a_key[i]}: {self.answers[self.a_key[i]]} ({self.timelog[self.a_key[i]]}) by {self.authors[self.a_key[i]]}\n"
-                rep = "{} ({})\n".format((" "*4)+"<- "+self.reply_a[kr], self.timelog[kr]) \
-                  if self.reply_a[kr] else \
-                  "{}\n".format((" "*4)+"<- No reply")
-                msg.append(line + rep)
+            self.make_lines(self.a_key, self.answers, self.reply_a, msg)
         msg.append(border)
         return msg
 
