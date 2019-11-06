@@ -39,15 +39,17 @@ class LTPcog(commands.Cog):
 
     #質問・解答追加処理関数(qoraが1なら質問、0なら解答と認識)
     def add_to_dict(self, qora:bool, ctx, key, has_matched):
-        if has_matched is not None :
+        matched_str = has_matched.group(1)
+        # 空白しかないもの、「」だけのものを除外するため
+        if set(filter(lambda x: x!=" " and x!="　", matched_str)):
             qa = "Q" if qora else "A"
             num = len(key)+1
             key.append(f"{qa}{num}")
-            self.clue[key[-1]] = has_matched.group(1)
-            self.reply[f"{key[-1]}r"] = ""
-            self.authors[key[-1]] = ctx.author.display_name
-            self.timelog[key[-1]] = jst_now()
             k = key[-1]
+            self.clue[k] = matched_str
+            self.reply[f"{k}r"] = ""
+            self.authors[k] = ctx.author.display_name
+            self.timelog[k] = jst_now()
             print(f"{k}: {self.clue[k]}")
             return template(k, self.clue[k], self.reply[f"{k}r"])
         else:
@@ -59,7 +61,6 @@ class LTPcog(commands.Cog):
         k = self.q_key[num-1] if qora else self.a_key[num-1]
         self.reply[f"{k}r"] = s[1]
         self.timelog[f"{k}r"] = jst_now()
-
 
     # 履歴表示用関数
     def show_list(self, ctx, key, n, tmp:str) -> str:
@@ -73,46 +74,40 @@ class LTPcog(commands.Cog):
         print(num)
         print(is_num(str(num)))
         # 引数が数字かどうか
-        if is_num(str(num))==True:
+        if is_num(str(num)):
             if len(key) == 0 :
                 m= f"{ctx.author.mention} まだ{tmp}がされていません"
             elif abs(num) > len(key):
                 m= f"{ctx.author.mention} Error! 指定された数字が{tmp}数よりも多いです"
             else:
                 #正数の場合は古い方からn個を、負数の場合は新しい方からn個を表示
-                if num>0:
-                    for i in range(num):
-                        line = template(key[i], self.clue[key[i]], self.reply[f"{key[i]}r"])
-                        m = f'{m}{line}\n'
-                else:
-                    for i in reversed(range(num*(-1))):
-                        i = (i+1)*(-1)
-                        print(i)
-                        line = template(key[i], self.clue[key[i]], self.reply[f"{key[i]}r"])
-                        m = f'{m}{line}\n'
+                lst = range(num) if num>0 else reversed(range(num*(-1)))
+                for i in lst:
+                    i = i if num>0 else (i+1)*(-1)
+                    print(i)
+                    line = template(key[i], self.clue[key[i]], self.reply[f"{key[i]}r"])
+                    m = f'{m}{line}\n'
         else :
             # rならば応答ありのものを、iならば応答に"!"を含むもののみを、それ以外の場合は応答のないものを表示
-            if num == 'r':
-                num = len(key)
-                for i in range(num):
-                    if self.reply[f"{key[i]}r"] != '' :
-                        line = template(key[i], self.clue[key[i]], self.reply[f"{key[i]}r"])
-                        m = f'{m}{line}\n'
-            elif num == 'i':
-                num = len(key)
-                for i in range(num):
-                    if '!' in self.reply[f"{key[i]}r"] or '！' in self.reply[f"{key[i]}r"]:
-                        line = template(key[i], self.clue[key[i]], self.reply[f"{key[i]}r"])
-                        m = f'{m}{line}\n'
+            if num == 'i':
+                key = list(filter(
+                    lambda x:
+                    '!' in self.reply[f"{x}r"] or '！' in self.reply[f"{x}r"],
+                    key))
+            elif num == 'r':
+                key = list(filter(lambda x: self.reply[f"{x}r"], key))
             else:
-                num = len(key)
-                for i in range(num):
-                    if self.reply[f"{key[i]}r"] == '' :
-                        line = template(key[i], self.clue[key[i]], self.reply[f"{key[i]}r"])
-                        m = f'{m}{line}\n'
+                key = list(filter(lambda x: not self.reply[f"{x}r"], key))
+            if key:
+                for k in key:
+                    line = template(k, self.clue[k], self.reply[f"{k}r"])
+                    m = f'{m}{line}\n'
+            else:
+                m = f"{ctx.author.mention} What you want is Nothing."
         return m
 
     def amend(self, ctx, key, num:int, s:str, tmp:str) -> str:
+        qa = 'Q' if tmp=='質問' else 'A'
         if len(key) > (num-1) :
             k = key[num-1]
             print(k)
@@ -121,50 +116,39 @@ class LTPcog(commands.Cog):
                 self.reply[f"{k}r"] = ""
                 self.timelog[k] = jst_now()
                 self.timelog[f"{k}r"] = ""
-                qa = 'Q' if tmp=='質問' else 'A'
                 m = f"{ctx.author.mention} {qa}{num}の変更を受理しました。"
             else:
                 m = f"{ctx.author.mention} 不正ユーザーです。{tmp}の訂正はその質問をした本人にのみ許されています。"
         else:
             m = f"{ctx.author.mention} Error! {qa}{num}はまだ存在しません"
-            print(m)
+        print(m)
         return m
 
     def make_lines(self, key, m_append):
-        for i in range(len(key)) :
-            kr = f'{key[i]}r'
+        for k in key :
+            kr = f'{k}r'
             print(kr)
-            line = f"{key[i]}: {self.clue[key[i]]} ({self.timelog[key[i]]}) by {self.authors[key[i]]}\n"
+            line = f"{k}: {self.clue[k]} ({self.timelog[k]}) by {self.authors[k]}\n"
             rep = (f"    <- {self.reply[kr]} ({self.timelog[kr]})\n"
                    if self.reply[kr] else
                    "    <- No reply\n")
             m_append(f"{line}{rep}")
 
     def showlog(self)-> list:
-        q_start = ""
-        a_start = ""
-        line = ""
-        q_log = ""
-        a_log = ""
         msg = []
-        border = "-"*16
-        container = ""
+        border = "----------------"
         m_append = msg.append
         m_append(f"===={self.start_time} 開始====")
-        if len(self.q_key) == 0 :
-            q_start = "【質問がありません】"
-            m_append(q_start)
+        if self.q_key :
+            m_append("【質問がありません】")
         else:
-            q_start = "【質問ログ】"
-            m_append(q_start)
+            m_append("【質問ログ】")
             self.make_lines(self.q_key, m_append)
         m_append(border)
-        if len(self.a_key) == 0 :
-            a_start = "【解答がありません】"
-            m_append(a_start)
+        if self.a_key :
+            m_append("【解答がありません】")
         else:
-            a_start = "【解答ログ】"
-            m_append(a_start)
+            m_append("【解答ログ】")
             self.make_lines(self.a_key, m_append)
         m_append(border)
         return msg
@@ -233,28 +217,32 @@ class LTPcog(commands.Cog):
         if message.author.bot:
             return
 
-        # 行頭の空白除外処理(なしに)
-        #message.content.lstrip(" ")
-        #message.content.lstrip("　")
+        """ これ意味ある？
         if message.content.startswith("!"):
             message.content.rstrip(" ")
             message.content.rstrip("　")
+        """
 
         # 質問への処理（正規表現を利用することにした）
         if message.content.startswith("「"):
             has_matched = LTPcog.reg_q.search(message.content)
-            m = self.add_to_dict(1, message, self.q_key, has_matched)
-            if m is not None:
-                await message.channel.send(m)
+            if has_matched is not None:
+                m = self.add_to_dict(1, message, self.q_key, has_matched)
+                if m is not None:
+                    await message.channel.send(m)
 
         # 解答への処理（正規表現を利用することにした）
         if message.content.startswith("『"):
             has_matched = LTPcog.reg_a.search(message.content)
-            m = self.add_to_dict(0, message, self.a_key, has_matched)
-            if m is not None:
-                await message.channel.send(m)
+            if has_matched is not None:
+                m = self.add_to_dict(0, message, self.a_key, has_matched)
+                if m is not None:
+                    await message.channel.send(m)
 
-        if message.content.startswith("Q") or message.content.startswith("q") or message.content.startswith("ｑ") or message.content.startswith("Ｑ"):
+        if (message.content.startswith("Q") or
+                message.content.startswith("q") or
+                message.content.startswith("ｑ") or
+                message.content.startswith("Ｑ")):
             has_matched = LTPcog.reg_reply.search(message.content)
             if has_matched is not None :
                 num = int(has_matched.group(1))
@@ -266,7 +254,10 @@ class LTPcog(commands.Cog):
                     m = f"{message.author.mention} Error! 質問(Q{num})はまだ存在しません"
                 await message.channel.send(m)
 
-        if message.content.startswith("A") or message.content.startswith("a") or message.content.startswith("ａ") or message.content.startswith("Ａ"):
+        if (message.content.startswith("A") or
+                message.content.startswith("a") or
+                message.content.startswith("ａ") or
+                message.content.startswith("Ａ")):
             has_matched = self.reg_reply.search(message.content)
             if has_matched is not None :
                 num = int(has_matched.group(1))
