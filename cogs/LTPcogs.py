@@ -75,7 +75,7 @@ class LTPcog(commands.Cog):
         print(is_num(str(num)))
         # 引数が数字かどうか
         if is_num(str(num)):
-            if len(key) == 0 :
+            if not key:
                 m= f"{ctx.author.mention} まだ{tmp}がされていません"
             elif abs(num) > len(key):
                 m= f"{ctx.author.mention} Error! 指定された数字が{tmp}数よりも多いです"
@@ -110,7 +110,6 @@ class LTPcog(commands.Cog):
         qa = 'Q' if tmp=='質問' else 'A'
         if len(key) > (num-1) :
             k = key[num-1]
-            print(k)
             if self.authors[k] == ctx.author.display_name:
                 self.clue[k] = s
                 self.reply[f"{k}r"] = ""
@@ -124,7 +123,9 @@ class LTPcog(commands.Cog):
         print(m)
         return m
 
-    def make_lines(self, key, m_append):
+    def make_lines(self, key):
+        ls = ""
+        print(key)
         for k in key :
             kr = f'{k}r'
             print(kr)
@@ -132,25 +133,42 @@ class LTPcog(commands.Cog):
             rep = (f"    <- {self.reply[kr]} ({self.timelog[kr]})\n"
                    if self.reply[kr] else
                    "    <- No reply\n")
-            m_append(f"{line}{rep}")
+            ls = f"{ls}{line}{rep}"
+            """
+            print(str_)
+            if len(str_) > 1200:
+                m_append(str_)
+                str_ = ""
+            """
+        return ls
 
     def showlog(self)-> list:
         msg = []
         border = "----------------"
         m_append = msg.append
-        m_append(f"===={self.start_time} 開始====")
-        if self.q_key :
-            m_append("【質問がありません】")
+        m = f"===={self.start_time} 開始====\n"
+        if not self.q_key :
+            m = f"{m}【質問がありません】\n"
         else:
-            m_append("【質問ログ】")
-            self.make_lines(self.q_key, m_append)
-        m_append(border)
-        if self.a_key :
-            m_append("【解答がありません】")
+            m = f"{m}【質問ログ】\n"
+            m = f"{m}{self.make_lines(self.q_key)}"
+        m = f"{m}{border}\n"
+        if not self.a_key :
+            m = f"{m}【解答がありません】\n"
         else:
-            m_append("【解答ログ】")
-            self.make_lines(self.a_key, m_append)
-        m_append(border)
+            m = f"{m}【解答ログ】\n"
+            m = f"{m}{self.make_lines(self.a_key, m)}"
+        m = f"{m}{border}\n"
+        lst = m.split("\n")
+        str_ = ""
+        for i in lst :
+            str_ = f"{str_}{i}\n"
+            if len(str_) > 1500:
+                m_append(str_)
+                str_ = ""
+        if str_ :
+            m_append(str_)
+        print(msg)
         return msg
 
 
