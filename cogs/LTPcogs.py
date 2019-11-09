@@ -56,11 +56,17 @@ class LTPcog(commands.Cog):
             return None
 
     #質問や解答への返答処理関数(こちらも質問は1,解答は0）
-    def respond(self, num:int, s:str, qora:bool):
-        s = s.split()
-        k = self.q_key[num-1] if qora else self.a_key[num-1]
-        self.reply[f"{k}r"] = s[1]
-        self.timelog[f"{k}r"] = jst_now()
+    def respond(self, num:int, s:str, key)->str:
+        k = key[num-1]
+        if len(key) > (num-1) :
+            s = s.split()
+            self.reply[f"{k}r"] = s[1]
+            self.timelog[f"{k}r"] = jst_now()
+            m = template(k, self.clue[k], self.reply[f"{k}r"])
+        else:
+            t = f"質問(Q{num})" if key is self.q_key else f"解答(A{num})"
+            m = f"{message.author.mention} Error! {t}はまだ存在しません"
+        return m
 
     # 履歴表示用関数
     def show_list(self, ctx, key, n, tmp:str) -> str:
@@ -123,8 +129,7 @@ class LTPcog(commands.Cog):
         print(m)
         return m
 
-    def make_lines(self, key):
-        ls = ""
+    def make_lines(self, key, m_append):
         print(key)
         for k in key :
             kr = f'{k}r'
@@ -133,46 +138,40 @@ class LTPcog(commands.Cog):
             rep = (f"    <- {self.reply[kr]} ({self.timelog[kr]})\n"
                    if self.reply[kr] else
                    "    <- No reply\n")
-            ls = f"{ls}{line}{rep}"
-            """
-            print(str_)
-            if len(str_) > 1200:
-                m_append(str_)
-                str_ = ""
-            """
-        return ls
+            m_append(f"{line}{rep}")
 
-    def showlog(self)-> list:
+    def showlog(self) -> list:
         msg = []
-        border = "----------------"
+        border = "----------------\n"
         m_append = msg.append
-        m = f"===={self.start_time} 開始====\n"
+        m_append(f"===={self.start_time} 開始====\n")
         if not self.q_key :
-            m = f"{m}【質問がありません】\n"
+            m_append(f"【質問がありません】\n")
         else:
-            m = f"{m}【質問ログ】\n"
-            m = f"{m}{self.make_lines(self.q_key)}"
-        m = f"{m}{border}\n"
+            m_append(f"【質問ログ】\n")
+            self.make_lines(self.q_key, m_append)
+        m_append(f"{border}")
         if not self.a_key :
-            m = f"{m}【解答がありません】\n"
+            m_append(f"【解答がありません】\n")
         else:
-            m = f"{m}【解答ログ】\n"
-            m = f"{m}{self.make_lines(self.a_key, m)}"
-        m = f"{m}{border}\n"
-        lst = m.split("\n")
+            m_append(f"【解答ログ】\n")
+            self.make_lines(self.a_key, m_append)
+        m_append(f"{border}")
         str_ = ""
-        for i in lst :
-            str_ = f"{str_}{i}\n"
+        lst = []
+        l_append = lst.append
+        for i in msg :
+            str_ = f"{str_}{i}"
             if len(str_) > 1500:
-                m_append(str_)
+                l_append(str_)
                 str_ = ""
         if str_ :
-            m_append(str_)
-        print(msg)
-        return msg
+            l_append(str_)
+        print(lst)
+        return lst
 
 
-    @commands.command(description="これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。数字で表示件数を指定することも可能です。負数による指定も可能です。\n`?list 20`：最初の20件を表示\n`?list -20`：最後の20件を表示\n未応答の解答のみを表示することも可能です。\n`?list nr`",brief="これまでに出た質問の履歴を表示します。数字で表示件数を指定することもできます。")
+    @commands.command(description="これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。数字で表示件数を指定することも可能です。負数による指定も可能です。\n`?list 20`：最初の20件を表示\n`?list -20`：最後の20件を表示\n未応答の解答のみを表示することも可能です。\n`?list n`",brief="これまでに出た質問の履歴を表示します。数字で表示件数を指定することもできます。")
     async def list(self, history, *n):
         m = self.show_list(history, self.q_key, n, '質問')
         print(m)
@@ -264,12 +263,7 @@ class LTPcog(commands.Cog):
             has_matched = LTPcog.reg_reply.search(message.content)
             if has_matched is not None :
                 num = int(has_matched.group(1))
-                if len(self.q_key) > (num-1) :
-                    self.respond(num, message.content, 1)
-                    k = self.q_key[num-1]
-                    m = template(k, self.clue[k], self.reply[f"{k}r"])
-                else:
-                    m = f"{message.author.mention} Error! 質問(Q{num})はまだ存在しません"
+                m = self.respond(num, message.content, self.q_key)
                 await message.channel.send(m)
 
         if (message.content.startswith("A") or
@@ -279,12 +273,7 @@ class LTPcog(commands.Cog):
             has_matched = self.reg_reply.search(message.content)
             if has_matched is not None :
                 num = int(has_matched.group(1))
-                if len(self.a_key) > (num-1) :
-                    self.respond(num, message.content, 0)
-                    k = self.a_key[num-1]
-                    m = template(k, self.clue[k], self.reply[f"{k}r"])
-                else:
-                    m = f"{message.author.mention} Error! 解答(A{num})はまだ存在しません"
+                m = self.respond(num, message.content, self.a_key)
                 await message.channel.send(m)
 
         #await self.bot.process_commands(message)

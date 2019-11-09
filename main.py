@@ -27,7 +27,10 @@ class LTPbot(commands.Bot):
             print(self.user.id)
             print('------')
 
-if __name__=='__main__' :
+def main():
     bot = LTPbot(command_prefix=BOT_PREFIX)
     #cogs.LTPcog.setup(bot)
     bot.run(TOKEN)
+
+if __name__=='__main__' :
+    main()

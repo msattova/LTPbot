@@ -14,7 +14,7 @@ class General(commands.Cog):
         self.bot = bot
         self.has_started = 0
         # 以下、デバッグ用設定
-        self.bot.add_cog(LTPcogs.LTPcog(self.bot))
+        #self.bot.add_cog(LTPcogs.LTPcog(self.bot))
 
     @commands.command(description="たまにさけびます",brief="おねこさま")
     async def neko(self, n):
