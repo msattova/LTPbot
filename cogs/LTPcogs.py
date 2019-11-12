@@ -14,6 +14,10 @@ class LTPcog(commands.Cog):
     reg_a = re.compile(r'^『(.*)』$')
     reg_reply = re.compile(r'^\D(\d+)\s.*$')
 
+    # botのメッセージが削除されるまでの時間(単位は秒)
+    DELAY_SECONDS = 180
+    DELAY_SECONDS_LONGER = 300
+
     #コンストラクタ
     def __init__(self, bot):
         self.bot = bot
@@ -57,8 +61,8 @@ class LTPcog(commands.Cog):
 
     #質問や解答への返答処理関数(こちらも質問は1,解答は0）
     def respond(self, num:int, s:str, key)->str:
-        k = key[num-1]
         if len(key) > (num-1) :
+            k = key[num-1]
             s = s.split()
             self.reply[f"{k}r"] = s[1]
             self.timelog[f"{k}r"] = jst_now()
@@ -175,20 +179,23 @@ class LTPcog(commands.Cog):
     async def list(self, history, *n):
         m = self.show_list(history, self.q_key, n, '質問')
         print(m)
-        await history.channel.send(m)
+        sended = await history.channel.send(m)
+        await sended.delete(delay=LTPcog.DELAY_SECONDS_LONGER)
 
     @commands.command(description="""これまでに出た解答(『』で囲まれた言葉)の履歴を表示します。数字で表示件数を指定することも可能です。負数による指定も可能です。\n`?list 20`：最初の20件を表示\n`?list -20`：最後の20件を表示\n未応答の解答のみを表示することも可能です。\n`?list nr`""",brief="これまでに出た解答の履歴を表示します。数字で表示件数を指定することもできます。")
     async def lista(self, history, *n):
         m = self.show_list(history, self.a_key, n, '解答')
         print(m)
-        await history.channel.send(m)
+        sended = await history.channel.send(m)
+        await sended.delete(delay=LTPcog.DELAY_SECONDS_LONGER)
 
     @commands.command(description="""質問を修正します。
 *使用方法*
 ?req したい質問番号) (質問の修正)""",brief="質問の修正ができます。")
     async def req(self, ctx, num:int, s:str):
         m = self.amend(ctx, self.q_key, num, s, '質問')
-        await ctx.channel.send(m)
+        sended = await ctx.channel.send(m)
+        await sended.delete(delay=LTPcog.DELAY_SECONDS)
 
     @req.error
     async def req_error(self, ctx, error):
@@ -200,7 +207,8 @@ class LTPcog(commands.Cog):
 ?rea (修正したい解答番号) (解答の修正)""",brief="解答の修正ができます。")
     async def rea(self, ctx, num:int, s:str):
         m = self.amend(ctx, self.a_key, num, s, '解答')
-        await ctx.channel.send(m)
+        sended = await ctx.channel.send(m)
+        await sended.delete(delay=LTPcog.DELAY_SECONDS)
 
     @rea.error
     async def rea_error(self, ctx, error):
@@ -219,7 +227,8 @@ class LTPcog(commands.Cog):
         self.clue.clear()
         self.reply.clear()
         m = "全て削除しました"
-        await ctx.channel.send(m)
+        sended = await ctx.channel.send(m)
+        await sended.delete(delay=LTPcog.DELAY_SECONDS)
 
     # ゲーム開始からのプレイログを出力する
     @commands.command(description="""ゲーム開始からのプレイログを出力します。
@@ -246,7 +255,8 @@ class LTPcog(commands.Cog):
             if has_matched is not None:
                 m = self.add_to_dict(1, message, self.q_key, has_matched)
                 if m is not None:
-                    await message.channel.send(m)
+                    sended = await message.channel.send(m)
+                    await sended.delete(delay=LTPcog.DELAY_SECONDS)
 
         # 解答への処理（正規表現を利用することにした）
         if message.content.startswith("『"):
@@ -254,7 +264,8 @@ class LTPcog(commands.Cog):
             if has_matched is not None:
                 m = self.add_to_dict(0, message, self.a_key, has_matched)
                 if m is not None:
-                    await message.channel.send(m)
+                    sended = await message.channel.send(m)
+                    await sended.delete(delay=LTPcog.DELAY_SECONDS)
 
         if (message.content.startswith("Q") or
                 message.content.startswith("q") or
@@ -264,7 +275,8 @@ class LTPcog(commands.Cog):
             if has_matched is not None :
                 num = int(has_matched.group(1))
                 m = self.respond(num, message.content, self.q_key)
-                await message.channel.send(m)
+                sended = await message.channel.send(m)
+                await sended.delete(delay=LTPcog.DELAY_SECONDS)
 
         if (message.content.startswith("A") or
                 message.content.startswith("a") or
@@ -274,7 +286,8 @@ class LTPcog(commands.Cog):
             if has_matched is not None :
                 num = int(has_matched.group(1))
                 m = self.respond(num, message.content, self.a_key)
-                await message.channel.send(m)
+                sended = await message.channel.send(m)
+                await sended.delete(delay=LTPcog.DELAY_SECONDS)
 
         #await self.bot.process_commands(message)
 
