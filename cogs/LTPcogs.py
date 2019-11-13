@@ -42,11 +42,11 @@ class LTPcog(commands.Cog):
         self.start_time = jst_now()
 
     # 質問・解答追加処理関数(qoraが1なら質問、0なら解答と認識)
-    def add_to_dict(self, qora: bool, ctx, key, has_matched):
-        matched_str = has_matched.group(1)
+    def add_to_dict(self, ctx, key: dict, matched_str: str):
+        # matched_str = has_matched.group(1)
         # 空白しかないもの、「」だけのものを除外するため
-        if set(filter(lambda x: x != " " and x != "　", matched_str)):
-            qa = "Q" if qora else "A"
+        if set((i for i in matched_str if i != " " and i != "　")):
+            qa = "Q" if key is self.q_key else "A"
             key.append(f"{qa}{len(self.clue)+1}")
             k = key[-1]
             self.clue[k] = matched_str
@@ -59,7 +59,7 @@ class LTPcog(commands.Cog):
             return None
 
     # 質問や解答への返答処理関数(こちらも質問は1,解答は0）
-    def respond(self, num: int, s: str, key) -> str:
+    def respond(self, num: int, s: str, key: dict) -> str:
         if len(key) > (num-1):
             k = key[num-1]
             s = s.split()
@@ -71,8 +71,18 @@ class LTPcog(commands.Cog):
             m = f"{message.author.mention} Error! {t}はまだ存在しません"
         return m
 
+    def make_message(self, msg, app):
+        str_ = ""
+        for i in msg:
+            str_ = f"{str_}{i}"
+            if len(str_) > 1500:
+                l_app(str_)
+                str_ = ""
+        if str_:
+            app(str_)
+
     # 履歴表示用関数
-    def show_list(self, ctx, key, n, tmp: str) -> str:
+    def show_list(self, ctx, key: dict, n, tmp: str) -> list:
         m = ""
         line = ""
         # 表示件数の指定。指定なしなら、全部。指定がある場合はその分だけ。0が指定された場合も全部。
@@ -101,21 +111,22 @@ class LTPcog(commands.Cog):
         else:
             # rならば応答ありのものを、iならば応答に"!"を含むもののみを、それ以外の場合は応答のないものを表示
             if num == 'i':
-                key = list(filter(
-                    lambda x:
-                    '!' in self.reply[f"{x}r"] or '！' in self.reply[f"{x}r"],
-                    key))
+                key = (i for i in key
+                       if '!' in self.reply[f"{i}r"] or
+                       '！' in self.reply[f"{i}r"])
             elif num == 'r':
-                key = list(filter(lambda x: self.reply[f"{x}r"], key))
+                key = (i for i in key if self.reply[f"{i}r"])
             else:
-                key = list(filter(lambda x: not self.reply[f"{x}r"], key))
+                key = (i for i in key if not self.reply[f"{i}r"])
             if key:
                 for k in key:
                     line = template(k, self.clue[k], self.reply[f"{k}r"])
                     m = f'{m}{line}\n'
             else:
                 m = f"{ctx.author.mention} What you want is Nothing."
-        return m
+        lst = []
+        self.make_message(m, lst.append)
+        return lst
 
     def amend(self, ctx, key, num: int, s: str, tmp: str) -> str:
         qa = 'Q' if tmp == '質問' else 'A'
@@ -167,13 +178,7 @@ class LTPcog(commands.Cog):
         str_ = ""
         lst = []
         l_append = lst.append
-        for i in msg:
-            str_ = f"{str_}{i}"
-            if len(str_) > 1500:
-                l_append(str_)
-                str_ = ""
-        if str_:
-            l_append(str_)
+        self.make_message(msg, l_append)
         print(lst)
         return lst
 
@@ -211,10 +216,15 @@ class LTPcog(commands.Cog):
                       brief="これまでに出た質問の履歴を表示します。"
                       "数字で表示件数を指定することもできます。")
     async def list(self, history, *n):
-        m = self.show_list(history, self.q_key, n, '質問')
-        print(m)
-        sended = await history.channel.send(m)
-        await sended.delete(delay=LTPcog.DELAY_SECONDS_LONGER)
+        lst = self.show_list(history, self.q_key, n, '質問')
+        print(lst)
+        snd = []
+        snd_append = snd.append
+        for i in lst:
+            sended = await history.channel.send(i)
+            snd_append(sended)
+        for i in snd:
+            await i.delete(delay=LTPcog.DELAY_SECONDS_LONGER)
 
     @commands.command(description="これまでに出た解答(『』で囲まれた言葉)の履歴を表示します。"
                       "数字で表示件数を指定することも可能です。負数による指定も可能です。\n"
@@ -261,8 +271,8 @@ class LTPcog(commands.Cog):
                 f'{ctx.author.mention} 引数が正しく指定されていません。'
                 '!help reaで使用方法を確認して下さい。')
 
-    @commands.group(aliases=['delete'])
-    async def del(self, ctx):
+    @commands.group(aliases=['del'])
+    async def delete(self, ctx):
         if ctx.invoked_subcommand is None:
             pass
 
@@ -318,7 +328,7 @@ class LTPcog(commands.Cog):
         if message.content.startswith("「"):
             has_matched = LTPcog.reg_q.search(message.content)
             if has_matched is not None:
-                m = self.add_to_dict(1, message, self.q_key, has_matched)
+                m = self.add_to_dict(message, self.q_key, has_matched.group(1))
                 if m is not None:
                     sended = await message.channel.send(m)
                     await sended.delete(delay=LTPcog.DELAY_SECONDS)
@@ -327,7 +337,7 @@ class LTPcog(commands.Cog):
         if message.content.startswith("『"):
             has_matched = LTPcog.reg_a.search(message.content)
             if has_matched is not None:
-                m = self.add_to_dict(0, message, self.a_key, has_matched)
+                m = self.add_to_dict(message, self.a_key, has_matched.group(1))
                 if m is not None:
                     sended = await message.channel.send(m)
                     await sended.delete(delay=LTPcog.DELAY_SECONDS)
