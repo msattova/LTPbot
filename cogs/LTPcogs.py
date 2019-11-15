@@ -47,7 +47,7 @@ class LTPcog(commands.Cog):
         # 空白しかないもの、「」だけのものを除外するため
         if set((i for i in matched_str if i != " " and i != "　")):
             qa = "Q" if key is self.q_key else "A"
-            key.append(f"{qa}{len(self.clue)+1}")
+            key.append(f"{qa}{len(key)+1}")
             k = key[-1]
             self.clue[k] = matched_str
             self.reply[f"{k}r"] = ""
@@ -60,9 +60,9 @@ class LTPcog(commands.Cog):
 
     # 質問や解答への返答処理関数(こちらも質問は1,解答は0）
     def respond(self, num: int, s: str, key: dict) -> str:
-        if len(key) > (num-1):
+        if len(key) > (num-1) and self.clue[key[num-1]]:
             k = key[num-1]
-            s = s.split()
+            s = s.split(None, 1)
             self.reply[f"{k}r"] = s[1]
             self.timelog[f"{k}r"] = jst_now()
             m = template(k, self.clue[k], self.reply[f"{k}r"])
@@ -76,7 +76,7 @@ class LTPcog(commands.Cog):
         for i in msg:
             str_ = f"{str_}{i}"
             if len(str_) > 1500:
-                l_app(str_)
+                app(str_)
                 str_ = ""
         if str_:
             app(str_)
@@ -102,6 +102,8 @@ class LTPcog(commands.Cog):
                 # 正数の場合は古い方からn個を、負数の場合は新しい方からn個を表示
                 lst = range(num) if num > 0 else reversed(range(num*(-1)))
                 for i in lst:
+                    if not self.clue[key[i]]:
+                        continue
                     i = i if num > 0 else (i+1)*(-1)
                     print(i)
                     line = template(key[i],
@@ -120,6 +122,8 @@ class LTPcog(commands.Cog):
                 key = (i for i in key if not self.reply[f"{i}r"])
             if key:
                 for k in key:
+                    if not self.clue[k]:
+                        continue
                     line = template(k, self.clue[k], self.reply[f"{k}r"])
                     m = f'{m}{line}\n'
             else:
@@ -140,7 +144,7 @@ class LTPcog(commands.Cog):
                 m = f"{ctx.author.mention} {qa}{num}の変更を受理しました。"
             else:
                 m = (f"{ctx.author.mention} 不正ユーザーです。"
-                     "{tmp}の訂正はその質問をした本人にのみ許されています。")
+                     f"{tmp}の訂正はその質問をした本人にのみ許されています。")
         else:
             m = f"{ctx.author.mention} Error! {qa}{num}はまだ存在しません"
         print(m)
@@ -148,7 +152,8 @@ class LTPcog(commands.Cog):
 
     def make_lines(self, key, m_append):
         print(key)
-        for k in key:
+        key_gen = (k for k in key if self.clue[k])
+        for k in key_gen:
             kr = f'{k}r'
             print(kr)
             line = (f"{k}: {self.clue[k]} ({self.timelog[k]}) "
@@ -185,23 +190,8 @@ class LTPcog(commands.Cog):
     def what_delete(self, key: dict, num: int) -> str:
         qa = f"Q{num}" if key is self.q_key else f"A{num}"
         if qa in key:
-            key_deleted = key.remove(qa)
-            """
-            key.popした時点で当該質問・解答にアクセスできなくなるため、
-            以下は不要
-            kdr = f"{key_deleted}r"
-            self.clue = {k: v
-                         for k, v in self.clue.items()
-                         if v is not self.clue[key_deleted]}
-            self.reply.pop(kdr)
-            self.authors = {k: v
-                            for k, v in self.authors.items()
-                            if v is not self.authors[key_deleted]}
-            self.timelog = {k: v
-                            for k, v in self.timelog.items()
-                            if not(v is self.clue[key_deleted]
-                                   or v is self.timelog[kdr])}
-            """
+            # 中身が空なら無視する、というように出力形関数を仕様変更
+            self.clue[qa] = ""
             print({k: v for k, v in self.clue.items()})
             return f"{qa}を削除しました"
         else:
@@ -304,8 +294,7 @@ class LTPcog(commands.Cog):
         await sended.delete(delay=LTPcog.DELAY_SECONDS)
 
     # ゲーム開始からのプレイログを出力する
-    @commands.command(description="""ゲーム開始からのプレイログを出力します。
-現在、発言者名は表示されませんが、今後の改良で表示するように変更していきます。""",
+    @commands.command(description="ゲーム開始からのプレイログを出力します。",
                       brief="ゲーム開始からのプレイログを出力します",
                       aliases=['log'])
     async def playlog(self, ctx):
