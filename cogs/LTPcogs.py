@@ -47,7 +47,8 @@ class LTPcog(commands.Cog):
         # 空白しかないもの、「」だけのものを除外するため
         if set((i for i in matched_str if i != " " and i != "　")):
             qa = "Q" if key is self.q_key else "A"
-            key.append(f"{qa}{len(key)+1}")
+            key_str = f"{qa}{len(key)+1}"
+            key.append(key_str)
             k = key[-1]
             self.clue[k] = matched_str
             self.reply[f"{k}r"] = ""
@@ -225,10 +226,15 @@ class LTPcog(commands.Cog):
                       brief="これまでに出た解答の履歴を表示します。"
                       "数字で表示件数を指定することもできます。")
     async def lista(self, history, *n):
-        m = self.show_list(history, self.a_key, n, '解答')
-        print(m)
-        sended = await history.channel.send(m)
-        await sended.delete(delay=LTPcog.DELAY_SECONDS_LONGER)
+        lst = self.show_list(history, self.a_key, n, '解答')
+        print(lst)
+        snd = []
+        snd_append = snd.append
+        for i in lst:
+            sended = await history.channel.send(i)
+            snd_append(sended)
+        for i in snd:
+            await i.delete(delay=LTPcog.DELAY_SECONDS_LONGER)
 
     @commands.command(description="質問を修正します。\n"
                       "*使用方法*\n"
