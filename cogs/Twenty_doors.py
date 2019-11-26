@@ -4,10 +4,10 @@ from . import LTPlib as ltp
 
 
 # コグとして用いるクラスを定義
-class LTPcog(commands.Cog):
+class Twenty_doors(commands.Cog):
 
     # コンストラクタ
-    def __init__(self, bot):
+    def __init__(self, bot, limit):
         self.bot = bot
         # Q1, A1などをキーとする質問・解答辞書(変数名は手掛かり=clueより)
         self.clue = {}
@@ -26,8 +26,12 @@ class LTPcog(commands.Cog):
         # questionsやanswersへのキーのリスト(順番を保持しなくてはならないのでリスト型)
         self.q_key = []
         self.a_key = []
-        # ウミガメのスープの開始時間
+        # 20の扉の開始時間
         self.start_time = ltp.jst_now()
+        # 質問可能数
+        self.LIMIT = limit
+        # これまでに質問された回数
+        self.times = 0
 
     # 質問・解答追加処理関数(qoraが1なら質問、0なら解答と認識)
     def add_to_dict(self, ctx, key: dict, matched_str: str):
@@ -55,6 +59,7 @@ class LTPcog(commands.Cog):
             self.reply[f"{k}r"] = s[1]
             self.timelog[f"{k}r"] = ltp.jst_now()
             m = ltp.template(k, self.clue[k], self.reply[f"{k}r"])
+            m += f"\nあと{self.LIMIT-self.times}回の質問が可能です"
         else:
             t = f"質問(Q{num})" if key is self.q_key else f"解答(A{num})"
             m = f"{ctx.author.mention} Error! {t}はまだ存在しません"
@@ -143,15 +148,11 @@ class LTPcog(commands.Cog):
         if len(lst) > (num-1):
             k = key[num-1]
             print(k)
-            if self.authors[k] == ctx.author.display_name:
-                self.clue[k] = s
-                self.reply[f"{k}r"] = ""
-                self.timelog[k] = ltp.jst_now()
-                self.timelog[f"{k}r"] = ""
-                m = f"{ctx.author.mention} {qa}の変更を受理しました。"
-            else:
-                m = (f"{ctx.author.mention} 不正ユーザーです。"
-                     f"{tmp}の訂正はその{tmp}をした本人にのみ許されています。")
+            self.clue[k] = s
+            self.reply[f"{k}r"] = ""
+            self.timelog[k] = ltp.jst_now()
+            self.timelog[f"{k}r"] = ""
+            m = f"{ctx.author.mention} {qa}の変更を受理しました。"
         else:
             m = f"{ctx.author.mention} Error! {qa}{num}はまだ存在しません"
         print(m)
@@ -192,21 +193,6 @@ class LTPcog(commands.Cog):
         self.make_message(msg, l_append)
         print(lst)
         return lst
-
-    def what_delete(self, ctx, key: dict, num: int) -> str:
-        (tmp, qa) = (("質問", f"Q{num}")
-                     if key is self.q_key else
-                     ("解答", f"A{num}"))
-        if self.authors[qa] == ctx.author.display_name:
-            if qa in key:
-                # 中身が空なら無視する、というように出力形関数を仕様変更
-                self.clue[qa] = ""
-                print({k: v for k, v in self.clue.items()})
-                return f"{qa}を削除しました"
-            else:
-                return f"{qa}は存在しません"
-        else:
-            return f"不正ユーザです。{tmp}の削除はその{tmp}をした本人にのみ許されています。"
 
     @commands.command(description="これまでに出た質問(「」で囲まれた言葉)の履歴を表示します。"
                       "数字で表示件数を指定することも可能です。負数による指定も可能です。\n"
@@ -325,7 +311,7 @@ class LTPcog(commands.Cog):
     @commands.command()
     async def restart(self, ctx):
         self.start_time = ltp.jst_now()
-        sended = await ctx.channel.send("ウミガメのスープを再開します")
+        sended = await ctx.channel.send("20の扉を仕切り直しします")
         await sended.delete(delay=ltp.DELAY_SECONDS)
 
     @commands.Cog.listener()
@@ -336,9 +322,10 @@ class LTPcog(commands.Cog):
         # 質問への処理（正規表現を利用することにした）
         if message.content.startswith("「"):
             has_matched = ltp.reg_q.search(message.content)
-            if has_matched is not None:
+            if has_matched is not None and self.times < self.LIMIT:
                 m = self.add_to_dict(message, self.q_key, has_matched.group(1))
                 if m is not None:
+                    self.times += 1
                     sended = await message.channel.send(m)
                     await sended.delete(delay=ltp.DELAY_SECONDS)
 
