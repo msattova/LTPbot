@@ -98,8 +98,8 @@ class General(commands.Cog):
             self.has_started['Twenty_doors'] = 1
             num = (20
                    if len(n) == 0 else
-                   n
-                   if ltp.is_num(n) else
+                   n[0]
+                   if ltp.is_num(n[0]) else
                    20)
             self.bot.add_cog(Twenty_doors.Twenty_doors(self.bot, num))
             await self.bot.change_presence(
