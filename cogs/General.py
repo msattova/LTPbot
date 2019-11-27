@@ -70,8 +70,9 @@ class General(commands.Cog):
              "(1)質問は「」でくくること。「」内文章に対しYES・NOで応対する。\n"
              "(2)解答は『』でくくること。\n"
              "(3)相談は「」でも『』でもくくらないこと。")
-        sended = await recieve.channel.send(m)
-        await sended.delete(delay=ltp.DELAY_SECONDS_LONGER)
+        await recieve.channel.send(m)
+        # sended = await recieve.channel.send(m)
+        # await sended.delete(delay=ltp.DELAY_SECONDS_LONGER)
 
     # ゲーム開始
     @commands.command(description="""ウミガメのスープを開始する際に使用して下さい。
