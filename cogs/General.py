@@ -104,7 +104,7 @@ class General(commands.Cog):
             self.bot.add_cog(Twenty_doors.Twenty_doors(self.bot, num))
             await self.bot.change_presence(
                 activity=discord.Game(name="20の扉"))
-            await ctx.channel.send("20の扉を開始します\n質問は{num}回まで可能です")
+            await ctx.channel.send(f"20の扉を開始します\n質問は{num}回まで可能です")
         else:
             sended = await ctx.channel.send("ゲーム中です！")
             await sended.delete(delay=ltp.DELAY_SECONDS)
