@@ -7,7 +7,7 @@ from . import LTPlib as ltp
 class Twenty_doors(commands.Cog):
 
     # コンストラクタ
-    def __init__(self, bot, limit):
+    def __init__(self, bot, limit: int):
         self.bot = bot
         # Q1, A1などをキーとする質問・解答辞書(変数名は手掛かり=clueより)
         self.clue = {}
@@ -29,7 +29,7 @@ class Twenty_doors(commands.Cog):
         # 20の扉の開始時間
         self.start_time = ltp.jst_now()
         # 質問可能数
-        self.LIMIT = limit
+        self.LIMIT = int(limit)
         # これまでに質問された回数
         self.times = 0
 
@@ -275,6 +275,8 @@ class Twenty_doors(commands.Cog):
     @delete.command()
     async def q(self, ctx, num: int):
         m = self.what_delete(ctx, self.q_key, num)
+        self.times -= 1
+        m += f"あと{self.LIMIT - self.times}回の質問が可能です"
         sended = await ctx.channel.send(f"{ctx.author.mention} {m}")
         await sended.delete(delay=ltp.DELAY_SECONDS)
 
@@ -295,6 +297,7 @@ class Twenty_doors(commands.Cog):
         self.timelog.clear()
         self.clue.clear()
         self.reply.clear()
+        self.times = 0
         m = "全て削除しました"
         sended = await ctx.channel.send(m)
         await sended.delete(delay=ltp.DELAY_SECONDS)
@@ -322,7 +325,9 @@ class Twenty_doors(commands.Cog):
         # 質問への処理（正規表現を利用することにした）
         if message.content.startswith("「"):
             has_matched = ltp.reg_q.search(message.content)
-            if has_matched is not None and self.times < self.LIMIT:
+            print(self.times < self.LIMIT)
+            if (has_matched is not None and
+                    self.times < self.LIMIT):
                 m = self.add_to_dict(message, self.q_key, has_matched.group(1))
                 if m is not None:
                     self.times += 1
