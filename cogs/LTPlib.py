@@ -3,8 +3,8 @@ from datetime import datetime, timedelta, timezone
 
 
 # 正規表現オブジェクト
-reg_q = re.compile(r'^「(.*)」$')
-reg_a = re.compile(r'^『(.*)』$')
+reg_q = re.compile(r'^(「|｢)(.*)(」|｣)$')
+reg_a = re.compile(r'^(『|『)(.*)(』|』)$')
 reg_reply = re.compile(r'^\D(\d+)\s.*$')
 
 # 遅延時間を秒で指定

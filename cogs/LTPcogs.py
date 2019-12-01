@@ -334,7 +334,8 @@ class LTPcog(commands.Cog):
             return
 
         # 質問への処理（正規表現を利用することにした）
-        if message.content.startswith("「"):
+        if (message.content.startswith("「") or
+                message.content.startswith("｢")):
             has_matched = ltp.reg_q.search(message.content)
             if has_matched is not None:
                 m = self.add_to_dict(message, self.q_key, has_matched.group(1))
@@ -343,7 +344,8 @@ class LTPcog(commands.Cog):
                     await sended.delete(delay=ltp.DELAY_SECONDS)
 
         # 解答への処理（正規表現を利用することにした）
-        if message.content.startswith("『"):
+        if (message.content.startswith("『") or
+                message.content.startswith("『")):
             has_matched = ltp.reg_a.search(message.content)
             if has_matched is not None:
                 m = self.add_to_dict(message, self.a_key, has_matched.group(1))
