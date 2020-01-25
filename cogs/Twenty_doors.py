@@ -349,7 +349,7 @@ class Twenty_doors(commands.Cog):
                 message.content.startswith("Ｑ")):
             has_matched = ltp.reg_reply.search(message.content)
             if has_matched is not None:
-                num = int(has_matched.group(2))
+                num = int(has_matched.group(1))
                 m = self.respond(message, num, self.q_key)
                 sended = await message.channel.send(m)
                 await sended.delete(delay=ltp.DELAY_SECONDS)
@@ -360,7 +360,7 @@ class Twenty_doors(commands.Cog):
                 message.content.startswith("Ａ")):
             has_matched = ltp.reg_reply.search(message.content)
             if has_matched is not None:
-                num = int(has_matched.group(2))
+                num = int(has_matched.group(1))
                 m = self.respond(message, num, self.a_key)
                 sended = await message.channel.send(m)
                 await sended.delete(delay=ltp.DELAY_SECONDS)
